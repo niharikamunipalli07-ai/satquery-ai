@@ -2,9 +2,7 @@
 // SATQUERY AI - FRONTEND SCRIPT
 // ==========================================
 
-// IMPORTANT:
-// Empty string means use the same Render website
-// instead of localhost.
+// Empty string = use the deployed Render website
 const API_URL = "";
 
 let uploadedFilename = null;
@@ -55,10 +53,8 @@ uploadButton.addEventListener("click", async function (event) {
     const file = imageInput.files[0];
 
     if (!file) {
-
         uploadStatus.textContent =
             "❌ Please select an image first.";
-
         return;
     }
 
@@ -68,9 +64,7 @@ uploadButton.addEventListener("click", async function (event) {
     uploadButton.disabled = true;
 
     const formData = new FormData();
-
     formData.append("file", file);
-
 
     try {
 
@@ -82,41 +76,29 @@ uploadButton.addEventListener("click", async function (event) {
             }
         );
 
-
-        // Read response as TEXT first
-        const responseText =
-            await response.text();
+        const responseText = await response.text();
 
         console.log(
             "UPLOAD RAW RESPONSE:",
             responseText
         );
 
-
-        // Convert to JSON safely
         let data;
 
         try {
-
             data = JSON.parse(responseText);
-
-        } catch (jsonError) {
-
+        } catch (error) {
             throw new Error(
-                "Server returned an invalid response: " +
-                responseText
+                "Server returned an invalid response."
             );
         }
-
 
         console.log(
             "UPLOAD RESPONSE:",
             data
         );
 
-
         if (!response.ok) {
-
             throw new Error(
                 data.detail ||
                 data.error ||
@@ -124,23 +106,16 @@ uploadButton.addEventListener("click", async function (event) {
             );
         }
 
-
-        // Save filename
-        uploadedFilename =
-            data.filename;
-
+        uploadedFilename = data.filename;
 
         if (!uploadedFilename) {
-
             throw new Error(
                 "Server did not return an uploaded filename."
             );
         }
 
-
         uploadStatus.textContent =
             "✅ Image uploaded successfully!";
-
 
     } catch (error) {
 
@@ -152,7 +127,6 @@ uploadButton.addEventListener("click", async function (event) {
         uploadStatus.textContent =
             "❌ Upload failed: " +
             error.message;
-
 
     } finally {
 
@@ -170,7 +144,6 @@ askButton.addEventListener("click", async function (event) {
 
     event.preventDefault();
 
-
     // Check image
     if (!uploadedFilename) {
 
@@ -180,11 +153,9 @@ askButton.addEventListener("click", async function (event) {
         return;
     }
 
-
     // Get question
     const userQuestion =
         question.value.trim();
-
 
     if (!userQuestion) {
 
@@ -194,13 +165,11 @@ askButton.addEventListener("click", async function (event) {
         return;
     }
 
-
     // Show processing
     result.textContent =
         "🤖 SatQuery AI is analyzing the image...";
 
     askButton.disabled = true;
-
 
     try {
 
@@ -228,12 +197,11 @@ askButton.addEventListener("click", async function (event) {
 
 
         // ==================================
-        // READ RESPONSE SAFELY
+        // READ RESPONSE
         // ==================================
 
         const responseText =
             await response.text();
-
 
         console.log(
             "VQA RAW RESPONSE:",
@@ -243,17 +211,15 @@ askButton.addEventListener("click", async function (event) {
 
         let data;
 
-
         try {
 
             data =
                 JSON.parse(responseText);
 
-        } catch (jsonError) {
+        } catch (error) {
 
             throw new Error(
-                "Backend returned an invalid response: " +
-                responseText
+                "Backend returned an invalid response."
             );
         }
 
@@ -265,7 +231,21 @@ askButton.addEventListener("click", async function (event) {
 
 
         // ==================================
-        // HANDLE SERVER ERROR
+        // HANDLE 429 RATE LIMIT
+        // ==================================
+
+        if (response.status === 429) {
+
+            result.textContent =
+                "⚠️ AI daily request limit reached.\n\n" +
+                "Please try again after the OpenRouter limit resets.";
+
+            return;
+        }
+
+
+        // ==================================
+        // HANDLE OTHER SERVER ERRORS
         // ==================================
 
         if (!response.ok) {
@@ -275,6 +255,20 @@ askButton.addEventListener("click", async function (event) {
                 data.error ||
                 "VQA request failed"
             );
+        }
+
+
+        // ==================================
+        // DISPLAY CATEGORY
+        // ==================================
+
+        const categoryElement =
+            document.getElementById("category");
+
+        if (categoryElement && data.category) {
+
+            categoryElement.textContent =
+                "Category: " + data.category;
         }
 
 
@@ -319,11 +313,9 @@ askButton.addEventListener("click", async function (event) {
             error
         );
 
-
         result.textContent =
             "❌ " +
             error.message;
-
 
     } finally {
 
