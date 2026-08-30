@@ -1,17 +1,33 @@
-const API_URL = "http://127.0.0.1:8000";
+// ==========================================
+// SATQUERY AI - FRONTEND SCRIPT
+// ==========================================
+
+// IMPORTANT:
+// Empty string means use the same Render website
+// instead of localhost.
+const API_URL = "";
 
 let uploadedFilename = null;
+
+
+// ==========================================
+// GET HTML ELEMENTS
+// ==========================================
 
 const imageInput = document.getElementById("imageInput");
 const preview = document.getElementById("preview");
 const uploadButton = document.getElementById("uploadButton");
 const uploadStatus = document.getElementById("uploadStatus");
+
 const askButton = document.getElementById("askButton");
 const question = document.getElementById("question");
 const result = document.getElementById("result");
 
 
+// ==========================================
 // IMAGE PREVIEW
+// ==========================================
+
 imageInput.addEventListener("change", function () {
 
     const file = this.files[0];
@@ -23,11 +39,15 @@ imageInput.addEventListener("change", function () {
     preview.src = URL.createObjectURL(file);
     preview.style.display = "block";
 
-    uploadStatus.textContent = "Image selected. Click Upload Image.";
+    uploadStatus.textContent =
+        "Image selected. Click Upload Image.";
 });
 
 
+// ==========================================
 // UPLOAD IMAGE
+// ==========================================
+
 uploadButton.addEventListener("click", async function (event) {
 
     event.preventDefault();
@@ -35,15 +55,22 @@ uploadButton.addEventListener("click", async function (event) {
     const file = imageInput.files[0];
 
     if (!file) {
-        uploadStatus.textContent = "❌ Please select an image first.";
+
+        uploadStatus.textContent =
+            "❌ Please select an image first.";
+
         return;
     }
 
-    uploadStatus.textContent = "⏳ Uploading image...";
+    uploadStatus.textContent =
+        "⏳ Uploading image...";
+
     uploadButton.disabled = true;
 
     const formData = new FormData();
+
     formData.append("file", file);
+
 
     try {
 
@@ -55,38 +82,96 @@ uploadButton.addEventListener("click", async function (event) {
             }
         );
 
-        const data = await response.json();
 
-        console.log("UPLOAD RESPONSE:", data);
+        // Read response as TEXT first
+        const responseText =
+            await response.text();
 
-        if (!response.ok) {
-            throw new Error(data.detail || "Upload failed");
+        console.log(
+            "UPLOAD RAW RESPONSE:",
+            responseText
+        );
+
+
+        // Convert to JSON safely
+        let data;
+
+        try {
+
+            data = JSON.parse(responseText);
+
+        } catch (jsonError) {
+
+            throw new Error(
+                "Server returned an invalid response: " +
+                responseText
+            );
         }
 
-        uploadedFilename = data.filename;
+
+        console.log(
+            "UPLOAD RESPONSE:",
+            data
+        );
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.detail ||
+                data.error ||
+                "Upload failed"
+            );
+        }
+
+
+        // Save filename
+        uploadedFilename =
+            data.filename;
+
+
+        if (!uploadedFilename) {
+
+            throw new Error(
+                "Server did not return an uploaded filename."
+            );
+        }
+
 
         uploadStatus.textContent =
             "✅ Image uploaded successfully!";
 
+
     } catch (error) {
 
-        console.error("UPLOAD ERROR:", error);
+        console.error(
+            "UPLOAD ERROR:",
+            error
+        );
 
         uploadStatus.textContent =
-            "❌ Upload failed: " + error.message;
+            "❌ Upload failed: " +
+            error.message;
+
 
     } finally {
 
         uploadButton.disabled = false;
     }
+
 });
 
 
-// ASK VQA
+// ==========================================
+// ASK SATQUERY AI
+// ==========================================
+
 askButton.addEventListener("click", async function (event) {
 
     event.preventDefault();
 
+
+    // Check image
     if (!uploadedFilename) {
 
         result.textContent =
@@ -95,7 +180,11 @@ askButton.addEventListener("click", async function (event) {
         return;
     }
 
-    const userQuestion = question.value.trim();
+
+    // Get question
+    const userQuestion =
+        question.value.trim();
+
 
     if (!userQuestion) {
 
@@ -105,10 +194,13 @@ askButton.addEventListener("click", async function (event) {
         return;
     }
 
+
+    // Show processing
     result.textContent =
         "🤖 SatQuery AI is analyzing the image...";
 
     askButton.disabled = true;
+
 
     try {
 
@@ -118,35 +210,124 @@ askButton.addEventListener("click", async function (event) {
                 method: "POST",
 
                 headers: {
-                    "Content-Type": "application/json"
+                    "Content-Type":
+                        "application/json"
                 },
 
                 body: JSON.stringify({
-                    filename: uploadedFilename,
-                    question: userQuestion
+
+                    filename:
+                        uploadedFilename,
+
+                    question:
+                        userQuestion
+
                 })
             }
         );
 
-        const data = await response.json();
 
-        console.log("VQA RESPONSE:", data);
+        // ==================================
+        // READ RESPONSE SAFELY
+        // ==================================
 
-        if (!response.ok) {
-            throw new Error(data.detail || "VQA failed");
+        const responseText =
+            await response.text();
+
+
+        console.log(
+            "VQA RAW RESPONSE:",
+            responseText
+        );
+
+
+        let data;
+
+
+        try {
+
+            data =
+                JSON.parse(responseText);
+
+        } catch (jsonError) {
+
+            throw new Error(
+                "Backend returned an invalid response: " +
+                responseText
+            );
         }
 
-        result.textContent = data.answer;
+
+        console.log(
+            "VQA RESPONSE:",
+            data
+        );
+
+
+        // ==================================
+        // HANDLE SERVER ERROR
+        // ==================================
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.detail ||
+                data.error ||
+                "VQA request failed"
+            );
+        }
+
+
+        // ==================================
+        // DISPLAY AI ANSWER
+        // ==================================
+
+        if (data.answer) {
+
+            result.textContent =
+                data.answer;
+
+        }
+
+        else if (data.geo_information) {
+
+            result.textContent =
+                JSON.stringify(
+                    data.geo_information,
+                    null,
+                    2
+                );
+
+        }
+
+        else {
+
+            result.textContent =
+                "⚠️ No answer returned.\n\n" +
+                JSON.stringify(
+                    data,
+                    null,
+                    2
+                );
+        }
+
 
     } catch (error) {
 
-        console.error("VQA ERROR:", error);
+        console.error(
+            "VQA ERROR:",
+            error
+        );
+
 
         result.textContent =
-            "❌ " + error.message;
+            "❌ " +
+            error.message;
+
 
     } finally {
 
         askButton.disabled = false;
     }
+
 });
