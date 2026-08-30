@@ -10,7 +10,7 @@ from backend.tools.vqa import ask_vqa
 
 
 # ==========================================
-# CREATE FASTAPI APPLICATION
+# Create FastAPI application
 # ==========================================
 
 app = FastAPI(
@@ -34,14 +34,24 @@ app.add_middleware(
 
 
 # ==========================================
-# HOME
+# Home
 # ==========================================
 
-from fastapi.responses import FileResponse
+@app.get("/")
+def home():
+    frontend_file = Path("frontend/index.html")
+
+    if frontend_file.exists():
+        return FileResponse(frontend_file)
+
+    return {
+        "message": "Welcome to SatQuery AI",
+        "status": "Backend is running"
+    }
 
 
 # ==========================================
-# HEALTH CHECK
+# Health Check
 # ==========================================
 
 @app.get("/health")
@@ -52,7 +62,7 @@ def health():
 
 
 # ==========================================
-# IMAGE UPLOAD
+# Image Upload
 # ==========================================
 
 @app.post("/upload")
@@ -61,7 +71,7 @@ async def upload(file: UploadFile = File(...)):
 
 
 # ==========================================
-# VQA REQUEST MODEL
+# VQA Request Model
 # ==========================================
 
 class VQARequest(BaseModel):
@@ -70,15 +80,15 @@ class VQARequest(BaseModel):
 
 
 # ==========================================
-# MAIN AI QUERY ENDPOINT
+# Main AI Query Endpoint
 # ==========================================
 
 @app.post("/vqa")
 async def vqa(request: VQARequest):
 
-    # --------------------------------------
+    # ======================================
     # Find uploaded image
-    # --------------------------------------
+    # ======================================
 
     image_path = Path("outputs/uploads") / request.filename
 
@@ -88,24 +98,19 @@ async def vqa(request: VQARequest):
             detail="Image not found"
         )
 
-
-    # --------------------------------------
+    # ======================================
     # STEP 1: QUERY PLANNER
-    # --------------------------------------
+    # ======================================
 
     from backend.tools.query_planner import classify_query
 
     question_lower = request.question.lower()
 
-
-    # --------------------------------------
-    # Keywords
-    # --------------------------------------
-
     visual_words = [
         "visible",
         "see",
         "shown",
+        "image",
         "buildings",
         "building",
         "roads",
@@ -142,17 +147,17 @@ async def vqa(request: VQARequest):
         "pattern"
     ]
 
+    # ======================================
+    # IMPORTANT:
+    # Check ANALYSIS first
+    # ======================================
 
-    # --------------------------------------
-    # ROUTE QUESTION
-    # --------------------------------------
-
-    if any(word in question_lower for word in visual_words):
+    if any(word in question_lower for word in analysis_words):
 
         planner_result = {
             "success": True,
-            "category": "VQA",
-            "reason": "The question asks about visually observable features."
+            "category": "ANALYSIS",
+            "reason": "The question asks for deeper image analysis."
         }
 
     elif any(word in question_lower for word in geo_words):
@@ -163,12 +168,12 @@ async def vqa(request: VQARequest):
             "reason": "The question asks for geographic information."
         }
 
-    elif any(word in question_lower for word in analysis_words):
+    elif any(word in question_lower for word in visual_words):
 
         planner_result = {
             "success": True,
-            "category": "ANALYSIS",
-            "reason": "The question asks for deeper image analysis."
+            "category": "VQA",
+            "reason": "The question asks about visually observable features."
         }
 
     else:
@@ -177,10 +182,9 @@ async def vqa(request: VQARequest):
             request.question
         )
 
-
-    # --------------------------------------
-    # Check planner
-    # --------------------------------------
+    # ======================================
+    # Check planner result
+    # ======================================
 
     if not planner_result.get("success", False):
 
@@ -192,11 +196,10 @@ async def vqa(request: VQARequest):
             )
         )
 
-
     category = planner_result.get(
         "category",
         "VQA"
-    )
+    ).upper()
 
 
     # ======================================
@@ -219,8 +222,10 @@ async def vqa(request: VQARequest):
                 detail=str(e)
             )
 
-
-        if not result.get("success", False):
+        if not result.get(
+            "success",
+            False
+        ):
 
             raise HTTPException(
                 status_code=500,
@@ -229,7 +234,6 @@ async def vqa(request: VQARequest):
                     "VQA processing failed"
                 )
             )
-
 
         return {
             "success": True,
@@ -268,8 +272,10 @@ async def vqa(request: VQARequest):
                 detail=str(e)
             )
 
-
-        if not geo_result.get("success", False):
+        if not geo_result.get(
+            "success",
+            False
+        ):
 
             raise HTTPException(
                 status_code=500,
@@ -279,12 +285,15 @@ async def vqa(request: VQARequest):
                 )
             )
 
-
         return {
             "success": True,
             "category": "GEO",
             "planner_reason": planner_result.get(
                 "reason",
+                ""
+            ),
+            "answer": geo_result.get(
+                "answer",
                 ""
             ),
             "geo_information": geo_result
@@ -315,7 +324,6 @@ async def vqa(request: VQARequest):
                 detail=str(e)
             )
 
-
         if not analysis_result.get(
             "success",
             False
@@ -328,7 +336,6 @@ async def vqa(request: VQARequest):
                     "Analysis failed"
                 )
             )
-
 
         return {
             "success": True,
@@ -345,17 +352,18 @@ async def vqa(request: VQARequest):
 
 
     # ======================================
-    # UNKNOWN CATEGORY
+    # Unknown category
     # ======================================
 
     return {
         "success": False,
+        "category": category,
         "error": "Unknown query category"
     }
 
 
 # ==========================================
-# SERVE FRONTEND
+# Serve Frontend Static Files
 # ==========================================
 
 frontend_path = Path("frontend")
