@@ -1,6 +1,7 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from pathlib import Path
 
@@ -36,12 +37,7 @@ app.add_middleware(
 # HOME
 # ==========================================
 
-@app.get("/")
-def home():
-    return {
-        "message": "Welcome to SatQuery AI",
-        "status": "Backend is running"
-    }
+from fastapi.responses import FileResponse
 
 
 # ==========================================
