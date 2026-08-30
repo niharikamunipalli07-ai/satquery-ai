@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>SatQuery AI</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 30px;
+            background: #f5f5f5;
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        .container {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+        }
+
+        input[type="file"] {
+            margin: 15px 0;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            margin-top: 10px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+
+        button {
+            padding: 12px 20px;
+            margin-top: 15px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        #uploadButton {
+            background: #333;
+            color: white;
+        }
+
+        #askButton {
+            background: #0066cc;
+            color: white;
+        }
+
+        button:disabled {
+            background: #999;
+            cursor: not-allowed;
+        }
+
+        #preview {
+            max-width: 100%;
+            max-height: 400px;
+            margin-top: 20px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        #uploadStatus {
+            margin-top: 15px;
+            font-weight: bold;
+        }
+
+        #answerBox {
+            margin-top: 25px;
+            padding: 20px;
+            background: #f0f7ff;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+        }
+
+        #answer {
+            margin-top: 15px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+
+        #category {
+            font-weight: bold;
+        }
+
+        .error {
+            color: red;
+        }
+
+        .success {
+            color: green;
+        }
+    </style>
+</head>
+
+
+<body>
+
+    <h1>🛰️ SatQuery AI</h1>
+
+    <p style="text-align:center;">
+        Agentic AI for Satellite Image Analysis
+    </p>
+
+
+    <!-- ================================= -->
+    <!-- UPLOAD SECTION -->
+    <!-- ================================= -->
+
+    <div class="container">
+
+        <h2>1. Upload Satellite Image</h2>
+
+        <input
+            type="file"
+            id="imageInput"
+            accept="image/*"
+        >
+
+        <br>
+
+        <button id="uploadButton">
+            Upload Image
+        </button>
+
+        <div id="uploadStatus">
+            No image uploaded yet.
+        </div>
+
+        <img
+            id="preview"
+            alt="Satellite Image Preview"
+        >
+
+    </div>
+
+
+    <!-- ================================= -->
+    <!-- QUESTION SECTION -->
+    <!-- ================================= -->
+
+    <div class="container">
+
+        <h2>2. Ask a Question</h2>
+
+        <input
+            type="text"
+            id="questionInput"
+            placeholder="Example: What is visible in this satellite image?"
+        >
+
+        <button
+            id="askButton"
+            disabled
+        >
+            Ask SatQuery AI
+        </button>
+
+    </div>
+
+
+    <!-- ================================= -->
+    <!-- AI ANSWER SECTION -->
+    <!-- ================================= -->
+
+    <div
+        class="container"
+        id="answerBox"
+    >
+
+        <h3>🤖 AI Answer</h3>
+
+        <p id="category">
+            Category: Waiting...
+        </p>
+
+        <p id="plannerReason">
+            Planner: Waiting...
+        </p>
+
+        <div id="answer">
+            Waiting for AI answer...
+        </div>
+
+    </div>
+
+
+    <!-- ================================= -->
+    <!-- JAVASCRIPT -->
+    <!-- ================================= -->
+
+    <script>
+
+        let uploadedFilename = null;
+
+
+        // =================================
+        // ELEMENTS
+        // =================================
+
+        const imageInput =
+            document.getElementById("imageInput");
+
+        const uploadButton =
+            document.getElementById("uploadButton");
+
+        const uploadStatus =
+            document.getElementById("uploadStatus");
+
+        const preview =
+            document.getElementById("preview");
+
+        const questionInput =
+            document.getElementById("questionInput");
+
+        const askButton =
+            document.getElementById("askButton");
+
+        const category =
+            document.getElementById("category");
+
+        const plannerReason =
+            document.getElementById("plannerReason");
+
+        const answer =
+            document.getElementById("answer");
+
+
+        // =================================
+        // IMAGE PREVIEW
+        // =================================
+
+        imageInput.addEventListener(
+            "change",
+            function () {
+
+                const file = imageInput.files[0];
+
+                if (!file) {
+                    return;
+                }
+
+                const imageURL =
+                    URL.createObjectURL(file);
+
+                preview.src = imageURL;
+
+                preview.style.display = "block";
+
+                uploadStatus.innerText =
+                    "Image selected: " + file.name;
+
+            }
+        );
+
+
+        // =================================
+        // UPLOAD IMAGE
+        // =================================
+
+        uploadButton.addEventListener(
+            "click",
+            async function () {
+
+                const file =
+                    imageInput.files[0];
+
+                if (!file) {
+
+                    uploadStatus.innerText =
+                        "❌ Please select an image first.";
+
+                    uploadStatus.className =
+                        "error";
+
+                    return;
+                }
+
+
+                uploadButton.disabled = true;
+
+                uploadStatus.innerText =
+                    "Uploading image...";
+
+                uploadStatus.className = "";
+
+
+                try {
+
+                    const formData =
+                        new FormData();
+
+                    formData.append(
+                        "file",
+                        file
+                    );
+
+
+                    const response =
+                        await fetch(
+                            "/upload",
+                            {
+                                method: "POST",
+                                body: formData
+                            }
+                        );
+
+
+                    const data =
+                        await response.json();
+
+
+                    console.log(
+                        "UPLOAD RESPONSE:",
+                        data
+                    );
+
+
+                    if (!response.ok) {
+
+                        throw new Error(
+                            data.detail ||
+                            "Image upload failed"
+                        );
+                    }
+
+
+                    // Get filename from backend
+
+                    uploadedFilename =
+                        data.filename;
+
+
+                    if (!uploadedFilename) {
+
+                        throw new Error(
+                            "Backend did not return filename"
+                        );
+                    }
+
+
+                    uploadStatus.innerText =
+                        "✅ Image uploaded successfully!";
+
+
+                    uploadStatus.className =
+                        "success";
+
+
+                    askButton.disabled =
+                        false;
+
+
+                }
+                catch (error) {
+
+                    console.error(
+                        "UPLOAD ERROR:",
+                        error
+                    );
+
+
+                    uploadStatus.innerText =
+                        "❌ " + error.message;
+
+
+                    uploadStatus.className =
+                        "error";
+
+
+                    askButton.disabled =
+                        true;
+
+                }
+                finally {
+
+                    uploadButton.disabled =
+                        false;
+
+                }
+
+            }
+        );
+
+
+        // =================================
+        // ASK QUESTION
+        // =================================
+
+        askButton.addEventListener(
+            "click",
+            async function () {
+
+                if (!uploadedFilename) {
+
+                    answer.innerText =
+                        "❌ Please upload an image first.";
+
+                    return;
+                }
+
+
+                const question =
+                    questionInput.value.trim();
+
+
+                if (!question) {
+
+                    answer.innerText =
+                        "❌ Please enter a question.";
+
+                    return;
+                }
+
+
+                askButton.disabled =
+                    true;
+
+
+                category.innerText =
+                    "Category: Processing...";
+
+
+                plannerReason.innerText =
+                    "Planner: Processing...";
+
+
+                answer.innerText =
+                    "🤖 AI is analyzing the image...";
+
+
+                try {
+
+                    const response =
+                        await fetch(
+                            "/vqa",
+                            {
+                                method: "POST",
+
+                                headers: {
+                                    "Content-Type":
+                                        "application/json"
+                                },
+
+                                body: JSON.stringify({
+
+                                    filename:
+                                        uploadedFilename,
+
+                                    question:
+                                        question
+
+                                })
+                            }
+                        );
+
+
+                    const data =
+                        await response.json();
+
+
+                    console.log(
+                        "VQA RESPONSE:",
+                        data
+                    );
+
+
+                    if (!response.ok) {
+
+                        throw new Error(
+                            data.detail ||
+                            "VQA request failed"
+                        );
+                    }
+
+
+                    // =================================
+                    // DISPLAY RESULT
+                    // =================================
+
+                    // =================================
+// DISPLAY RESULT
+// =================================
+
+category.innerText =
+    "Category: " +
+    (data.category || "Unknown");
+
+plannerReason.innerText =
+    "Planner: " +
+    (data.planner_reason || "No planner reason");
+
+
+// =================================
+// GET ANSWER FOR VQA / GEO / ANALYSIS
+// =================================
+
+let finalAnswer = "";
+
+
+// VQA answer
+if (data.answer) {
+
+    finalAnswer = data.answer;
+
+}
+
+
+// GEO answer
+else if (
+    data.geo_information &&
+    data.geo_information.answer
+) {
+
+    finalAnswer =
+        data.geo_information.answer;
+
+}
+
+
+// GEO fallback
+else if (
+    data.geo_information
+) {
+
+    finalAnswer =
+        JSON.stringify(
+            data.geo_information,
+            null,
+            2
+        );
+
+}
+
+
+// Nothing returned
+else {
+
+    finalAnswer =
+        "No answer returned.";
+
+}
+
+
+    answer.innerText = finalAnswer;
+           }
+                catch (error) {
+
+                    console.error(
+                        "VQA ERROR:",
+                        error
+                    );
+
+                    answer.innerText =
+                        "❌ " + error.message;
+
+                }
+                finally {
+
+                    askButton.disabled = false;
+
+                }
+
+            }
+        );
+    </script>
+
+</body>
+
+</html>
