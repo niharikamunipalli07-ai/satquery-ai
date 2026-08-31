@@ -39,7 +39,7 @@ app.add_middleware(
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"]
+    allow_headers=["*"],
 )
 
 
@@ -54,13 +54,8 @@ app.mount(
 )
 
 
-# ============================================================
-# HOME
-# ============================================================
-
 @app.get("/", include_in_schema=False)
 async def home():
-
     return FileResponse(
         str(FRONTEND_DIR / "index.html")
     )
@@ -72,7 +67,6 @@ async def home():
 
 @app.get("/health")
 async def health():
-
     return {
         "status": "healthy",
         "service": "SatQuery AI"
@@ -84,7 +78,6 @@ async def health():
 # ============================================================
 
 class VQARequest(BaseModel):
-
     filename: str
     question: str
 
@@ -94,52 +87,35 @@ class VQARequest(BaseModel):
 # ============================================================
 
 @app.post("/upload")
-async def upload_image(
-    file: UploadFile = File(...)
-):
-
-    # Check file type
+async def upload_image(file: UploadFile = File(...)):
 
     if not file.content_type:
-
         raise HTTPException(
             status_code=400,
             detail="File type could not be detected."
         )
 
-
     if not file.content_type.startswith("image/"):
-
         raise HTTPException(
             status_code=400,
             detail="Please upload an image file."
         )
 
-
-    # Safe filename
-
     filename = Path(file.filename).name
 
-
     if not filename:
-
         raise HTTPException(
             status_code=400,
             detail="Invalid filename."
         )
 
-
     file_path = UPLOAD_DIR / filename
-
-
-    # Save image
 
     try:
 
         contents = await file.read()
 
         with open(file_path, "wb") as f:
-
             f.write(contents)
 
     except Exception as e:
@@ -149,67 +125,39 @@ async def upload_image(
             detail=f"Could not save image: {str(e)}"
         )
 
-
-    print(
-        f"IMAGE UPLOADED: {filename}"
-    )
-
-
     return {
-
         "success": True,
-
-        "message":
-            "Image uploaded successfully",
-
-        "filename":
-            filename
-
+        "message": "Image uploaded successfully",
+        "filename": filename
     }
 
 
 # ============================================================
-# VQA
+# VQA / GEO / ANALYSIS
 # ============================================================
 
 @app.post("/vqa")
-async def vqa(
-    request: VQARequest
-):
+async def vqa(request: VQARequest):
 
     filename = request.filename
-
     question = request.question.strip()
 
-
-    # ========================================================
-    # VALIDATION
-    # ========================================================
-
     if not filename:
-
         raise HTTPException(
             status_code=400,
             detail="Filename is required."
         )
 
-
     if not question:
-
         raise HTTPException(
             status_code=400,
             detail="Question is required."
         )
 
-
-    # ========================================================
-    # SAFE IMAGE PATH
-    # ========================================================
-
+    # Security: use only filename
     safe_filename = Path(filename).name
 
     image_path = UPLOAD_DIR / safe_filename
-
 
     if not image_path.exists():
 
@@ -219,252 +167,208 @@ async def vqa(
         )
 
 
-    print("=" * 60)
-
-    print("SATQUERY AI VQA REQUEST")
-
-    print(
-        "Image:",
-        safe_filename
-    )
-
-    print(
-        "Question:",
-        question
-    )
-
-    print("=" * 60)
-
-
     # ========================================================
-    # QUERY PLANNER
+    # STEP 1 — QUERY PLANNER
     # ========================================================
-
-    category = "VQA"
-
-    planner_reason = (
-        "The question asks about visible "
-        "features in the satellite image."
-    )
-
 
     try:
 
         from backend.tools.query_planner import classify_query
 
-        planner_result = classify_query(
-            question
-        )
-
+        planner_result = classify_query(question)
 
         print(
             "PLANNER RESULT:",
             planner_result
         )
 
-
-        if isinstance(
-            planner_result,
-            dict
-        ):
-
-            category = (
-
-                planner_result.get(
-                    "category"
-                )
-
-                or planner_result.get(
-                    "type"
-                )
-
-                or planner_result.get(
-                    "query_type"
-                )
-
-                or "VQA"
-
-            )
-
-
-            planner_reason = (
-
-                planner_result.get(
-                    "reason"
-                )
-
-                or planner_result.get(
-                    "planner_reason"
-                )
-
-                or planner_result.get(
-                    "explanation"
-                )
-
-                or planner_reason
-
-            )
-
-
-        elif isinstance(
-            planner_result,
-            str
-        ):
-
-            category = planner_result
-
-
     except Exception as e:
 
         print(
-            "PLANNER ERROR:",
+            "QUERY PLANNER ERROR:",
             str(e)
         )
 
-        # IMPORTANT:
-        # Planner failure should NOT stop VQA.
+        planner_result = {
+            "success": False,
+            "category": "VQA",
+            "reason": "Planner failed. Using VQA as fallback.",
+            "error": str(e)
+        }
+
+
+    # ========================================================
+    # STEP 2 — GET CATEGORY
+    # ========================================================
+
+    category = "VQA"
+
+    planner_reason = "Visual question answering"
+
+    if isinstance(planner_result, dict):
+
+        category = (
+            planner_result.get("category")
+            or planner_result.get("type")
+            or planner_result.get("query_type")
+            or "VQA"
+        )
+
+        planner_reason = (
+            planner_result.get("reason")
+            or planner_result.get("planner_reason")
+            or planner_result.get("explanation")
+            or "Visual question answering"
+        )
+
+    elif isinstance(planner_result, str):
+
+        category = planner_result
+
+
+    category = str(category).upper().strip()
+
+    if category not in ["VQA", "GEO", "ANALYSIS"]:
 
         category = "VQA"
 
-        planner_reason = (
-            "Visual question answering "
-            "for satellite imagery."
-        )
+
+    print(
+        "SELECTED CATEGORY:",
+        category
+    )
 
 
     # ========================================================
-    # CALL VQA MODEL
+    # STEP 3 — VQA AGENT
     # ========================================================
 
-    try:
+    if category == "VQA":
 
-        from backend.tools.vqa import ask_vqa
+        try:
 
-        vqa_result = ask_vqa(
+            from backend.tools.vqa import ask_vqa
 
-            str(image_path),
-
-            question
-
-        )
-
-
-        print(
-            "VQA RESULT:",
-            vqa_result
-        )
-
-
-    except Exception as e:
-
-        print(
-            "VQA EXCEPTION:",
-            str(e)
-        )
-
-        raise HTTPException(
-
-            status_code=500,
-
-            detail=(
-                "VQA processing failed: "
-                + str(e)
+            agent_result = ask_vqa(
+                str(image_path),
+                question
             )
 
-        )
+        except Exception as e:
+
+            print(
+                "VQA AGENT ERROR:",
+                str(e)
+            )
+
+            raise HTTPException(
+                status_code=500,
+                detail=f"VQA Agent error: {str(e)}"
+            )
 
 
     # ========================================================
-    # CHECK VQA RESULT
+    # STEP 4 — GEO AGENT
     # ========================================================
 
-    if not isinstance(
-        vqa_result,
-        dict
-    ):
+    elif category == "GEO":
 
-        answer = str(
-            vqa_result
-        )
+        try:
+
+            from backend.tools.geo_agent import get_geo_information
+
+            agent_result = get_geo_information(
+                str(image_path)
+            )
+
+        except Exception as e:
+
+            print(
+                "GEO AGENT ERROR:",
+                str(e)
+            )
+
+            raise HTTPException(
+                status_code=500,
+                detail=f"GEO Agent error: {str(e)}"
+            )
 
 
-    else:
+    # ========================================================
+    # STEP 5 — ANALYSIS AGENT
+    # ========================================================
 
-        success = vqa_result.get(
+    elif category == "ANALYSIS":
+
+        try:
+
+            from backend.tools.analysis_agent import analyze_image
+
+            agent_result = analyze_image(
+                str(image_path),
+                question
+            )
+
+        except Exception as e:
+
+            print(
+                "ANALYSIS AGENT ERROR:",
+                str(e)
+            )
+
+            raise HTTPException(
+                status_code=500,
+                detail=f"Analysis Agent error: {str(e)}"
+            )
+
+
+    # ========================================================
+    # STEP 6 — PROCESS AGENT RESULT
+    # ========================================================
+
+    if isinstance(agent_result, dict):
+
+        success = agent_result.get(
             "success",
-            False
+            True
         )
-
-
-        # ----------------------------------------------------
-        # VQA FAILED
-        # ----------------------------------------------------
 
         if not success:
 
-            error_message = (
-
-                vqa_result.get(
-                    "error"
-                )
-
-                or
-                "VQA model failed."
-
+            error_message = agent_result.get(
+                "error",
+                "Agent failed."
             )
 
+            return {
+                "success": False,
+                "category": category,
+                "planner_reason": planner_reason,
+                "answer": f"⚠️ {error_message}",
+                "filename": safe_filename
+            }
 
-            print(
-                "VQA FAILED:",
-                error_message
-            )
-
-
-            raise HTTPException(
-
-                status_code=502,
-
-                detail=error_message
-
-            )
-
-
-        # ----------------------------------------------------
-        # GET ACTUAL AI ANSWER
-        # ----------------------------------------------------
 
         answer = (
-
-            vqa_result.get(
-                "answer"
-            )
-
-            or
-            vqa_result.get(
-                "content"
-            )
-
-            or
-            vqa_result.get(
-                "response"
-            )
-
+            agent_result.get("answer")
+            or agent_result.get("content")
+            or agent_result.get("response")
         )
-
 
         if not answer:
 
-            answer = (
-                "The AI did not return "
-                "an answer."
-            )
+            answer = str(agent_result)
+
+    else:
+
+        answer = str(agent_result)
 
 
     # ========================================================
     # FINAL RESPONSE
     # ========================================================
 
-    final_response = {
+    return {
 
         "success": True,
 
@@ -477,19 +381,3 @@ async def vqa(
         "filename": safe_filename
 
     }
-
-
-    print("=" * 60)
-
-    print(
-        "FINAL SATQUERY RESPONSE:"
-    )
-
-    print(
-        final_response
-    )
-
-    print("=" * 60)
-
-
-    return final_response
