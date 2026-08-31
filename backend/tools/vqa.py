@@ -1,5 +1,6 @@
 import base64
 import os
+import time
 import requests
 
 from dotenv import load_dotenv
@@ -9,9 +10,18 @@ load_dotenv()
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 
+# ============================================================
+# SATQUERY AI - VQA
+# ============================================================
+
 def ask_vqa(image_path: str, question: str):
 
+    # ========================================================
+    # CHECK API KEY
+    # ========================================================
+
     if not OPENROUTER_API_KEY:
+
         return {
             "success": False,
             "error": "OPENROUTER_API_KEY is not configured"
@@ -19,9 +29,9 @@ def ask_vqa(image_path: str, question: str):
 
     try:
 
-        # ==========================================
+        # ====================================================
         # READ IMAGE
-        # ==========================================
+        # ====================================================
 
         with open(image_path, "rb") as image_file:
 
@@ -30,9 +40,9 @@ def ask_vqa(image_path: str, question: str):
             ).decode("utf-8")
 
 
-        # ==========================================
-        # IMAGE TYPE
-        # ==========================================
+        # ====================================================
+        # DETERMINE IMAGE TYPE
+        # ====================================================
 
         extension = os.path.splitext(
             image_path
@@ -40,11 +50,17 @@ def ask_vqa(image_path: str, question: str):
 
 
         mime_types = {
+
             ".jpg": "image/jpeg",
+
             ".jpeg": "image/jpeg",
+
             ".png": "image/png",
+
             ".tif": "image/tiff",
+
             ".tiff": "image/tiff"
+
         }
 
 
@@ -54,14 +70,18 @@ def ask_vqa(image_path: str, question: str):
         )
 
 
+        # ====================================================
+        # CREATE DATA URL
+        # ====================================================
+
         data_url = (
             f"data:{mime_type};base64,{image_data}"
         )
 
 
-        # ==========================================
-        # VQA PROMPT
-        # ==========================================
+        # ====================================================
+        # SATQUERY AI PROMPT
+        # ====================================================
 
         prompt = f"""
 You are SatQuery AI, an AI assistant specialized
@@ -88,194 +108,334 @@ Rules:
 """
 
 
-        # ==========================================
-        # OPENROUTER REQUEST
-        # ==========================================
+        # ====================================================
+        # MODELS TO TRY
+        # ====================================================
+        #
+        # We try several models so that a temporary
+        # provider rate-limit does not immediately
+        # break SatQuery AI.
+        #
 
-        response = requests.post(
+        models = [
 
-            "https://openrouter.ai/api/v1/chat/completions",
+            "google/gemma-4-31b-it:free",
 
-            headers={
-                "Authorization":
-                    f"Bearer {OPENROUTER_API_KEY}",
+            "openrouter/free"
 
-                "Content-Type":
-                    "application/json"
-            },
+        ]
 
-            json={
 
-                "model": "openrouter/free",
+        last_error = None
 
-                "max_tokens": 1000,
 
-                "messages": [
+        # ====================================================
+        # TRY MODELS
+        # ====================================================
 
-                    {
-                        "role": "user",
+        for model in models:
 
-                        "content": [
+            print(
+                f"SATQUERY AI: Trying model: {model}"
+            )
+
+
+            try:
+
+                response = requests.post(
+
+                    "https://openrouter.ai/api/v1/chat/completions",
+
+                    headers={
+
+                        "Authorization":
+                            f"Bearer {OPENROUTER_API_KEY}",
+
+                        "Content-Type":
+                            "application/json",
+
+                        "HTTP-Referer":
+                            "https://satquery-ai-qpoi.onrender.com",
+
+                        "X-Title":
+                            "SatQuery AI"
+
+                    },
+
+
+                    json={
+
+                        "model": model,
+
+                        "max_tokens": 1000,
+
+                        "messages": [
 
                             {
-                                "type": "text",
 
-                                "text": prompt
-                            },
+                                "role": "user",
 
-                            {
-                                "type": "image_url",
+                                "content": [
 
-                                "image_url": {
+                                    {
 
-                                    "url": data_url
-                                }
+                                        "type": "text",
+
+                                        "text": prompt
+
+                                    },
+
+                                    {
+
+                                        "type": "image_url",
+
+                                        "image_url": {
+
+                                            "url": data_url
+
+                                        }
+
+                                    }
+
+                                ]
+
                             }
 
                         ]
+
+                    },
+
+
+                    timeout=120
+
+                )
+
+
+                # =================================================
+                # SUCCESS
+                # =================================================
+
+                if response.status_code == 200:
+
+                    try:
+
+                        result = response.json()
+
+                    except Exception:
+
+                        last_error = (
+                            "OpenRouter returned invalid JSON: "
+                            + response.text
+                        )
+
+                        continue
+
+
+                    print(
+                        "OPENROUTER RESPONSE:",
+                        result
+                    )
+
+
+                    # =============================================
+                    # API ERROR INSIDE JSON
+                    # =============================================
+
+                    if "error" in result:
+
+                        error_info = result["error"]
+
+
+                        if isinstance(
+                            error_info,
+                            dict
+                        ):
+
+                            last_error = (
+                                error_info.get(
+                                    "message",
+                                    str(error_info)
+                                )
+                            )
+
+                        else:
+
+                            last_error = str(
+                                error_info
+                            )
+
+                        continue
+
+
+                    # =============================================
+                    # CHECK CHOICES
+                    # =============================================
+
+                    if "choices" not in result:
+
+                        last_error = (
+                            "OpenRouter response does not contain "
+                            "'choices'. Full response: "
+                            + str(result)
+                        )
+
+                        continue
+
+
+                    if not result["choices"]:
+
+                        last_error = (
+                            "OpenRouter returned an empty "
+                            "choices list."
+                        )
+
+                        continue
+
+
+                    # =============================================
+                    # GET MESSAGE
+                    # =============================================
+
+                    message = result["choices"][0].get(
+                        "message",
+                        {}
+                    )
+
+
+                    content = message.get(
+                        "content"
+                    )
+
+
+                    if not content:
+
+                        last_error = (
+                            "AI returned no text content."
+                        )
+
+                        continue
+
+
+                    # =============================================
+                    # SUCCESSFUL ANSWER
+                    # =============================================
+
+                    print(
+                        f"SATQUERY AI: Successful model: {model}"
+                    )
+
+
+                    return {
+
+                        "success": True,
+
+                        "question": question,
+
+                        "answer": content,
+
+                        "model": model
+
                     }
 
-                ]
-            },
 
-            timeout=120
-        )
+                # =================================================
+                # RATE LIMIT
+                # =================================================
 
+                elif response.status_code == 429:
 
-        # ==========================================
-        # CHECK HTTP RESPONSE
-        # ==========================================
+                    print(
+                        f"SATQUERY AI: Model {model} "
+                        "is rate-limited."
+                    )
 
-        if response.status_code != 200:
+                    last_error = (
+                        f"Model {model} is temporarily "
+                        "rate-limited."
+                    )
 
-            return {
-                "success": False,
-                "error":
-                    f"OpenRouter HTTP {response.status_code}: "
-                    f"{response.text}"
-            }
-
-
-        # ==========================================
-        # PARSE JSON
-        # ==========================================
-
-        try:
-
-            result = response.json()
-
-        except Exception:
-
-            return {
-                "success": False,
-                "error":
-                    "OpenRouter returned invalid JSON: "
-                    + response.text
-            }
+                    # Try next model
+                    continue
 
 
-        # ==========================================
-        # DEBUG RESPONSE
-        # ==========================================
+                # =================================================
+                # OTHER HTTP ERROR
+                # =================================================
 
-        print(
-            "OPENROUTER RESPONSE:",
-            result
-        )
+                else:
 
-
-        # ==========================================
-        # CHECK FOR API ERROR
-        # ==========================================
-
-        if "error" in result:
-
-            error_info = result["error"]
-
-            if isinstance(error_info, dict):
-
-                return {
-                    "success": False,
-                    "error":
-                        error_info.get(
-                            "message",
-                            str(error_info)
-                        )
-                }
-
-            return {
-                "success": False,
-                "error": str(error_info)
-            }
+                    print(
+                        f"SATQUERY AI: Model {model} "
+                        f"returned HTTP {response.status_code}"
+                    )
 
 
-        # ==========================================
-        # CHECK CHOICES
-        # ==========================================
+                    last_error = (
+                        f"OpenRouter HTTP "
+                        f"{response.status_code}: "
+                        f"{response.text}"
+                    )
 
-        if "choices" not in result:
-
-            return {
-                "success": False,
-                "error":
-                    "OpenRouter response does not contain "
-                    "'choices'. Full response: "
-                    + str(result)
-            }
+                    continue
 
 
-        if not result["choices"]:
+            except requests.exceptions.Timeout:
 
-            return {
-                "success": False,
-                "error":
-                    "OpenRouter returned an empty choices list."
-            }
+                last_error = (
+                    f"Model {model} request timed out."
+                )
 
+                print(
+                    "SATQUERY AI: Request timed out."
+                )
 
-        # ==========================================
-        # GET MESSAGE
-        # ==========================================
-
-        message = result["choices"][0].get(
-            "message",
-            {}
-        )
+                continue
 
 
-        content = message.get(
-            "content"
-        )
+            except requests.exceptions.RequestException as e:
+
+                last_error = str(e)
+
+                print(
+                    "SATQUERY AI request error:",
+                    e
+                )
+
+                continue
 
 
-        if not content:
-
-            return {
-                "success": False,
-                "error":
-                    "AI returned no text content."
-            }
-
-
-        # ==========================================
-        # SUCCESS
-        # ==========================================
+        # ========================================================
+        # ALL MODELS FAILED
+        # ========================================================
 
         return {
 
-            "success": True,
+            "success": False,
 
-            "question": question,
+            "error":
+                "All available AI models are currently "
+                "unavailable. Last error: "
+                + str(last_error)
 
-            "answer": content
         }
 
 
+    # ============================================================
+    # GENERAL ERROR
+    # ============================================================
+
     except Exception as e:
+
+        print(
+            "SATQUERY AI VQA ERROR:",
+            e
+        )
+
 
         return {
 
             "success": False,
 
             "error": str(e)
+
         }
