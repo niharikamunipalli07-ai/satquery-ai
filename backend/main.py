@@ -10,7 +10,7 @@ from backend.tools.vqa import ask_vqa
 
 
 # ==========================================
-# Create FastAPI application
+# CREATE FASTAPI APPLICATION
 # ==========================================
 
 app = FastAPI(
@@ -34,94 +34,150 @@ app.add_middleware(
 
 
 # ==========================================
-# Home
+# PATHS
+# ==========================================
+
+FRONTEND_DIR = Path("frontend")
+UPLOAD_DIR = Path("outputs/uploads")
+
+UPLOAD_DIR.mkdir(
+    parents=True,
+    exist_ok=True
+)
+
+
+# ==========================================
+# HOME PAGE
 # ==========================================
 
 @app.get("/")
-def home():
-    frontend_file = Path("frontend/index.html")
+async def home():
+
+    frontend_file = FRONTEND_DIR / "index.html"
 
     if frontend_file.exists():
-        return FileResponse(frontend_file)
+        return FileResponse(
+            str(frontend_file)
+        )
 
     return {
         "message": "Welcome to SatQuery AI",
-        "status": "Backend is running"
+        "status": "Backend is running",
+        "error": "frontend/index.html not found"
     }
 
 
 # ==========================================
-# Health Check
+# HEALTH CHECK
 # ==========================================
 
 @app.get("/health")
-def health():
+async def health():
+
     return {
-        "status": "healthy"
+        "status": "healthy",
+        "service": "SatQuery AI"
     }
 
 
 # ==========================================
-# Image Upload
+# UPLOAD IMAGE
 # ==========================================
 
 @app.post("/upload")
-async def upload(file: UploadFile = File(...)):
-    return await upload_image(file)
+async def upload(
+    file: UploadFile = File(...)
+):
+
+    try:
+
+        return await upload_image(file)
+
+    except Exception as e:
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
 
 
 # ==========================================
-# VQA Request Model
+# VQA REQUEST MODEL
 # ==========================================
 
 class VQARequest(BaseModel):
+
     filename: str
     question: str
 
 
 # ==========================================
-# Main AI Query Endpoint
+# MAIN AI QUERY
 # ==========================================
 
 @app.post("/vqa")
-async def vqa(request: VQARequest):
+async def vqa(
+    request: VQARequest
+):
 
     # ======================================
-    # Find uploaded image
+    # FIND IMAGE
     # ======================================
 
-    image_path = Path("outputs/uploads") / request.filename
+    image_path = (
+        UPLOAD_DIR /
+        request.filename
+    )
 
     if not image_path.exists():
+
         raise HTTPException(
             status_code=404,
             detail="Image not found"
         )
 
+
     # ======================================
-    # STEP 1: QUERY PLANNER
+    # QUERY PLANNER
     # ======================================
 
-    from backend.tools.query_planner import classify_query
+    from backend.tools.query_planner import (
+        classify_query
+    )
 
-    question_lower = request.question.lower()
+
+    question_lower = (
+        request.question.lower()
+    )
+
+
+    # ======================================
+    # KEYWORDS
+    # ======================================
 
     visual_words = [
         "visible",
         "see",
         "shown",
         "image",
-        "buildings",
         "building",
-        "roads",
+        "buildings",
         "road",
+        "roads",
         "vegetation",
         "green areas",
         "stadium",
         "sports facilities",
         "objects",
-        "describe"
+        "describe",
+        "tree",
+        "trees",
+        "vehicle",
+        "vehicles",
+        "field",
+        "fields"
     ]
+
 
     geo_words = [
         "latitude",
@@ -136,6 +192,7 @@ async def vqa(request: VQARequest):
         "address"
     ]
 
+
     analysis_words = [
         "analyze",
         "analysis",
@@ -144,37 +201,61 @@ async def vqa(request: VQARequest):
         "land use",
         "change detection",
         "risk assessment",
-        "pattern"
+        "pattern",
+        "development",
+        "compare",
+        "comparison"
     ]
 
+
     # ======================================
-    # IMPORTANT:
-    # Check ANALYSIS first
+    # CLASSIFY QUERY
     # ======================================
 
-    if any(word in question_lower for word in analysis_words):
+    if any(
+        word in question_lower
+        for word in analysis_words
+    ):
 
         planner_result = {
             "success": True,
             "category": "ANALYSIS",
-            "reason": "The question asks for deeper image analysis."
+            "reason": (
+                "The question asks for "
+                "deeper image analysis."
+            )
         }
 
-    elif any(word in question_lower for word in geo_words):
+
+    elif any(
+        word in question_lower
+        for word in geo_words
+    ):
 
         planner_result = {
             "success": True,
             "category": "GEO",
-            "reason": "The question asks for geographic information."
+            "reason": (
+                "The question asks for "
+                "geographic information."
+            )
         }
 
-    elif any(word in question_lower for word in visual_words):
+
+    elif any(
+        word in question_lower
+        for word in visual_words
+    ):
 
         planner_result = {
             "success": True,
             "category": "VQA",
-            "reason": "The question asks about visually observable features."
+            "reason": (
+                "The question asks about "
+                "visually observable features."
+            )
         }
+
 
     else:
 
@@ -182,11 +263,15 @@ async def vqa(request: VQARequest):
             request.question
         )
 
+
     # ======================================
-    # Check planner result
+    # CHECK PLANNER
     # ======================================
 
-    if not planner_result.get("success", False):
+    if not planner_result.get(
+        "success",
+        False
+    ):
 
         raise HTTPException(
             status_code=500,
@@ -196,14 +281,15 @@ async def vqa(request: VQARequest):
             )
         )
 
+
     category = planner_result.get(
         "category",
         "VQA"
-    ).upper()
+    )
 
 
     # ======================================
-    # STEP 2: VQA AGENT
+    # VQA AGENT
     # ======================================
 
     if category == "VQA":
@@ -217,23 +303,53 @@ async def vqa(request: VQARequest):
 
         except Exception as e:
 
+            error_message = str(e)
+
+            # OpenRouter rate limit
+            if "429" in error_message:
+
+                raise HTTPException(
+                    status_code=429,
+                    detail=(
+                        "OpenRouter daily AI request "
+                        "limit has been reached. "
+                        "Please try again after the "
+                        "daily limit resets."
+                    )
+                )
+
             raise HTTPException(
                 status_code=500,
-                detail=str(e)
+                detail=error_message
             )
+
 
         if not result.get(
             "success",
             False
         ):
 
+            error_message = result.get(
+                "error",
+                "VQA processing failed"
+            )
+
+            if "429" in error_message:
+
+                raise HTTPException(
+                    status_code=429,
+                    detail=(
+                        "OpenRouter daily AI request "
+                        "limit has been reached. "
+                        "Please try again later."
+                    )
+                )
+
             raise HTTPException(
                 status_code=500,
-                detail=result.get(
-                    "error",
-                    "VQA processing failed"
-                )
+                detail=error_message
             )
+
 
         return {
             "success": True,
@@ -250,7 +366,7 @@ async def vqa(request: VQARequest):
 
 
     # ======================================
-    # STEP 3: GEO AGENT
+    # GEO AGENT
     # ======================================
 
     if category == "GEO":
@@ -272,6 +388,7 @@ async def vqa(request: VQARequest):
                 detail=str(e)
             )
 
+
         if not geo_result.get(
             "success",
             False
@@ -285,6 +402,7 @@ async def vqa(request: VQARequest):
                 )
             )
 
+
         return {
             "success": True,
             "category": "GEO",
@@ -292,16 +410,12 @@ async def vqa(request: VQARequest):
                 "reason",
                 ""
             ),
-            "answer": geo_result.get(
-                "answer",
-                ""
-            ),
             "geo_information": geo_result
         }
 
 
     # ======================================
-    # STEP 4: ANALYSIS AGENT
+    # ANALYSIS AGENT
     # ======================================
 
     if category == "ANALYSIS":
@@ -324,6 +438,7 @@ async def vqa(request: VQARequest):
                 detail=str(e)
             )
 
+
         if not analysis_result.get(
             "success",
             False
@@ -336,6 +451,7 @@ async def vqa(request: VQARequest):
                     "Analysis failed"
                 )
             )
+
 
         return {
             "success": True,
@@ -352,28 +468,25 @@ async def vqa(request: VQARequest):
 
 
     # ======================================
-    # Unknown category
+    # UNKNOWN CATEGORY
     # ======================================
 
     return {
         "success": False,
-        "category": category,
         "error": "Unknown query category"
     }
 
 
 # ==========================================
-# Serve Frontend Static Files
+# SERVE FRONTEND STATIC FILES
 # ==========================================
 
-frontend_path = Path("frontend")
-
-if frontend_path.exists():
+if FRONTEND_DIR.exists():
 
     app.mount(
         "/frontend",
         StaticFiles(
-            directory="frontend",
+            directory=str(FRONTEND_DIR),
             html=True
         ),
         name="frontend"
