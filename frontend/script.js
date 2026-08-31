@@ -2,434 +2,354 @@
 // SATQUERY AI - FRONTEND
 // ==========================================
 
-
-// Render and local development both work
-// because the API uses the same website.
-
+// Empty string = use the same Render website
 const API_URL = "";
 
-
-// Uploaded image filename
 let uploadedFilename = null;
 
 
 // ==========================================
-// GET ELEMENTS
+// HTML ELEMENTS
 // ==========================================
 
-const imageInput =
-    document.getElementById("imageInput");
+const imageInput = document.getElementById("imageInput");
+const uploadButton = document.getElementById("uploadButton");
+const uploadStatus = document.getElementById("uploadStatus");
+const preview = document.getElementById("preview");
 
-const preview =
-    document.getElementById("preview");
+const questionInput = document.getElementById("questionInput");
+const askButton = document.getElementById("askButton");
 
-const uploadButton =
-    document.getElementById("uploadButton");
-
-const uploadStatus =
-    document.getElementById("uploadStatus");
-
-const askButton =
-    document.getElementById("askButton");
-
-const questionInput =
-    document.getElementById("questionInput");
-
-const category =
-    document.getElementById("category");
-
-const plannerReason =
-    document.getElementById("plannerReason");
-
-const answer =
-    document.getElementById("answer");
+const category = document.getElementById("category");
+const plannerReason = document.getElementById("plannerReason");
+const answer = document.getElementById("answer");
 
 
 // ==========================================
 // IMAGE PREVIEW
 // ==========================================
 
-imageInput.addEventListener(
-    "change",
-    function () {
+imageInput.addEventListener("change", function () {
 
-        const file =
-            imageInput.files[0];
+    const file = imageInput.files[0];
 
-        if (!file) {
-            return;
-        }
-
-        preview.src =
-            URL.createObjectURL(file);
-
-        preview.style.display =
-            "block";
-
-        uploadStatus.textContent =
-            "Image selected: " +
-            file.name;
-
-        uploadStatus.className = "";
-
-        askButton.disabled = true;
+    if (!file) {
+        return;
     }
-);
+
+    preview.src = URL.createObjectURL(file);
+    preview.style.display = "block";
+
+    uploadStatus.innerText =
+        "Image selected: " + file.name;
+
+    uploadStatus.className = "status";
+});
 
 
 // ==========================================
 // UPLOAD IMAGE
 // ==========================================
 
-uploadButton.addEventListener(
-    "click",
-    async function () {
+uploadButton.addEventListener("click", async function () {
 
-        const file =
-            imageInput.files[0];
+    const file = imageInput.files[0];
 
-        if (!file) {
+    if (!file) {
 
-            uploadStatus.textContent =
-                "❌ Please select an image first.";
+        uploadStatus.innerText =
+            "❌ Please select an image first.";
 
-            uploadStatus.className =
-                "error";
+        return;
+    }
 
-            return;
-        }
+    uploadButton.disabled = true;
+
+    uploadStatus.innerText =
+        "⏳ Uploading image...";
+
+    try {
+
+        const formData = new FormData();
+
+        formData.append("file", file);
 
 
-        uploadButton.disabled = true;
+        const response = await fetch(
+            API_URL + "/upload",
+            {
+                method: "POST",
+                body: formData
+            }
+        );
 
-        uploadStatus.textContent =
-            "⏳ Uploading image...";
 
-        uploadStatus.className = "";
+        const responseText =
+            await response.text();
 
+        console.log(
+            "UPLOAD RAW RESPONSE:",
+            responseText
+        );
+
+
+        let data;
 
         try {
 
-            const formData =
-                new FormData();
+            data = JSON.parse(responseText);
 
-            formData.append(
-                "file",
-                file
+        } catch {
+
+            throw new Error(
+                "Server returned an invalid response."
             );
-
-
-            const response =
-                await fetch(
-                    API_URL + "/upload",
-                    {
-                        method: "POST",
-                        body: formData
-                    }
-                );
-
-
-            const responseText =
-                await response.text();
-
-
-            console.log(
-                "UPLOAD RESPONSE:",
-                responseText
-            );
-
-
-            let data;
-
-
-            try {
-
-                data =
-                    JSON.parse(responseText);
-
-            }
-            catch {
-
-                throw new Error(
-                    "Server returned an invalid response."
-                );
-            }
-
-
-            if (!response.ok) {
-
-                throw new Error(
-                    data.detail ||
-                    data.error ||
-                    "Image upload failed."
-                );
-            }
-
-
-            uploadedFilename =
-                data.filename;
-
-
-            if (!uploadedFilename) {
-
-                throw new Error(
-                    "Backend did not return a filename."
-                );
-            }
-
-
-            uploadStatus.textContent =
-                "✅ Image uploaded successfully!";
-
-            uploadStatus.className =
-                "success";
-
-
-            askButton.disabled =
-                false;
-
-
-        }
-        catch (error) {
-
-            console.error(
-                "UPLOAD ERROR:",
-                error
-            );
-
-
-            uploadStatus.textContent =
-                "❌ " +
-                error.message;
-
-            uploadStatus.className =
-                "error";
-
-
-            askButton.disabled =
-                true;
-
-        }
-        finally {
-
-            uploadButton.disabled =
-                false;
         }
 
-    }
-);
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.detail ||
+                data.error ||
+                "Image upload failed."
+            );
+        }
 
 
-// ==========================================
-// ASK SATQUERY AI
-// ==========================================
+        uploadedFilename =
+            data.filename;
 
-askButton.addEventListener(
-    "click",
-    async function () {
 
         if (!uploadedFilename) {
 
-            answer.textContent =
-                "❌ Please upload an image first.";
-
-            return;
+            throw new Error(
+                "Backend did not return a filename."
+            );
         }
 
 
-        const userQuestion =
-            questionInput.value.trim();
+        uploadStatus.innerText =
+            "✅ Image uploaded successfully!";
 
 
-        if (!userQuestion) {
+        askButton.disabled = false;
 
-            answer.textContent =
-                "❌ Please enter a question.";
 
-            return;
-        }
+        category.innerText =
+            "Waiting...";
 
+        plannerReason.innerText =
+            "Ready to analyze your question.";
+
+        answer.innerText =
+            "Image uploaded. Ask a question about it.";
+
+
+    } catch (error) {
+
+        console.error(
+            "UPLOAD ERROR:",
+            error
+        );
+
+        uploadStatus.innerText =
+            "❌ " + error.message;
 
         askButton.disabled = true;
 
 
-        category.textContent =
-            "Processing...";
+    } finally {
+
+        uploadButton.disabled = false;
+
+    }
+
+});
 
 
-        plannerReason.textContent =
-            "Processing your question...";
+// ==========================================
+// ASK QUESTION
+// ==========================================
+
+askButton.addEventListener("click", async function () {
+
+    if (!uploadedFilename) {
+
+        answer.innerText =
+            "❌ Please upload an image first.";
+
+        return;
+    }
 
 
-        answer.textContent =
-            "🤖 SatQuery AI is analyzing the image...";
+    const userQuestion =
+        questionInput.value.trim();
 
+
+    if (!userQuestion) {
+
+        answer.innerText =
+            "❌ Please enter a question.";
+
+        return;
+    }
+
+
+    askButton.disabled = true;
+
+
+    category.innerText =
+        "Processing...";
+
+    plannerReason.innerText =
+        "Processing your question...";
+
+    answer.innerText =
+        "🤖 SatQuery AI is analyzing the satellite image...";
+
+
+    try {
+
+        const response = await fetch(
+            API_URL + "/vqa",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
+
+                body: JSON.stringify({
+
+                    filename:
+                        uploadedFilename,
+
+                    question:
+                        userQuestion
+
+                })
+            }
+        );
+
+
+        const responseText =
+            await response.text();
+
+
+        console.log(
+            "VQA RAW RESPONSE:",
+            responseText
+        );
+
+
+        let data;
 
         try {
 
-            const response =
-                await fetch(
-                    API_URL + "/vqa",
-                    {
-                        method: "POST",
+            data = JSON.parse(responseText);
 
-                        headers: {
-                            "Content-Type":
-                                "application/json"
-                        },
+        } catch {
 
-                        body: JSON.stringify({
-
-                            filename:
-                                uploadedFilename,
-
-                            question:
-                                userQuestion
-
-                        })
-                    }
-                );
-
-
-            const responseText =
-                await response.text();
-
-
-            console.log(
-                "VQA RAW RESPONSE:",
-                responseText
+            throw new Error(
+                "Backend returned an invalid response."
             );
+        }
 
 
-            let data;
+        console.log(
+            "VQA RESPONSE:",
+            data
+        );
 
 
-            try {
+        if (!response.ok) {
 
-                data =
-                    JSON.parse(responseText);
-
-            }
-            catch {
-
-                throw new Error(
-                    "Backend returned an invalid response."
-                );
-            }
-
-
-            console.log(
-                "VQA RESPONSE:",
-                data
+            throw new Error(
+                data.detail ||
+                data.error ||
+                "VQA request failed."
             );
+        }
 
 
-            if (!response.ok) {
+        // ======================================
+        // CATEGORY
+        // ======================================
 
-                throw new Error(
-                    data.detail ||
-                    data.error ||
-                    "AI request failed."
-                );
-            }
-
-
-            // ==================================
-            // CATEGORY
-            // ==================================
-
-            category.textContent =
-                data.category ||
-                "Unknown";
+        category.innerText =
+            data.category ||
+            "VQA";
 
 
-            // ==================================
-            // PLANNER
-            // ==================================
+        // ======================================
+        // PLANNER
+        // ======================================
 
-            plannerReason.textContent =
-                data.planner_reason ||
-                "No planner information returned.";
-
-
-            // ==================================
-            // ANSWER
-            // ==================================
-
-            let finalAnswer = "";
+        plannerReason.innerText =
+            data.planner_reason ||
+            "Satellite image analysis completed.";
 
 
-            // VQA / ANALYSIS
-            if (data.answer) {
+        // ======================================
+        // AI ANSWER
+        // ======================================
 
-                finalAnswer =
-                    data.answer;
-            }
+        if (data.answer) {
 
-
-            // GEO
-            else if (
-                data.geo_information
-            ) {
-
-                const geo =
-                    data.geo_information;
-
-
-                if (geo.answer) {
-
-                    finalAnswer =
-                        geo.answer;
-
-                }
-                else {
-
-                    finalAnswer =
-                        JSON.stringify(
-                            geo,
-                            null,
-                            2
-                        );
-                }
-            }
-
-
-            // Nothing returned
-            else {
-
-                finalAnswer =
-                    "⚠️ No answer returned.\n\n" +
-                    JSON.stringify(
-                        data,
-                        null,
-                        2
-                    );
-            }
-
-
-            answer.textContent =
-                finalAnswer;
-
+            answer.innerText =
+                data.answer;
 
         }
-        catch (error) {
 
-            console.error(
-                "VQA ERROR:",
-                error
-            );
+        else if (
+            data.geo_information &&
+            data.geo_information.answer
+        ) {
 
-
-            answer.textContent =
-                "❌ " +
-                error.message;
+            answer.innerText =
+                data.geo_information.answer;
 
         }
-        finally {
 
-            askButton.disabled =
-                false;
+        else if (data.geo_information) {
+
+            answer.innerText =
+                JSON.stringify(
+                    data.geo_information,
+                    null,
+                    2
+                );
+
         }
+
+        else {
+
+            answer.innerText =
+                "⚠️ No answer returned.\n\n" +
+                JSON.stringify(
+                    data,
+                    null,
+                    2
+                );
+        }
+
+
+    } catch (error) {
+
+        console.error(
+            "VQA ERROR:",
+            error
+        );
+
+        answer.innerText =
+            "❌ " + error.message;
+
+    } finally {
+
+        askButton.disabled = false;
 
     }
-);
+
+});

@@ -1,192 +1,193 @@
+/* =========================================
+   SATQUERY AI - PROFESSIONAL WEBSITE
+   ========================================= */
+
 * {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
 }
 
-
 body {
     font-family: Arial, Helvetica, sans-serif;
-    background: #f4f7fb;
-    color: #172033;
+    background: #eef4f8;
+    color: #17212b;
     line-height: 1.6;
 }
 
 
-/* =========================
+/* =========================================
    HEADER
-========================= */
+   ========================================= */
 
 .header {
-    background: #101828;
+    background: #0b1f33;
     color: white;
-    padding: 25px 7%;
+    padding: 22px 8%;
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 20px;
 }
 
-
 .logo {
     font-size: 25px;
     font-weight: bold;
 }
 
-
 .tagline {
     font-size: 14px;
-    opacity: 0.8;
+    opacity: 0.85;
 }
 
 
-/* =========================
-   MAIN
-========================= */
+/* =========================================
+   MAIN CONTAINER
+   ========================================= */
 
 .main-container {
-    max-width: 1000px;
+    width: 90%;
+    max-width: 1100px;
     margin: auto;
-    padding: 50px 20px;
 }
 
 
-/* =========================
+/* =========================================
    HERO
-========================= */
+   ========================================= */
 
 .hero {
     text-align: center;
-    margin-bottom: 45px;
+    padding: 70px 20px 45px;
+}
+
+.hero h1 {
+    font-size: 48px;
+    line-height: 1.15;
+    margin-bottom: 20px;
+    color: #102a43;
+}
+
+.hero h1 span {
+    display: block;
+    color: #1677c8;
+}
+
+.hero p {
+    max-width: 750px;
+    margin: auto;
+    font-size: 18px;
+    color: #52606d;
 }
 
 
-.hero h1 {
-    font-size: 46px;
-    line-height: 1.2;
+/* =========================================
+   CARDS
+   ========================================= */
+
+.card {
+    background: white;
+    margin: 25px 0;
+    padding: 35px;
+    border-radius: 18px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+    border: 1px solid #d9e2ec;
+}
+
+.section-number {
+    color: #1677c8;
+    font-size: 13px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+}
+
+.card h2 {
+    color: #102a43;
+    margin-bottom: 8px;
+}
+
+.description {
+    color: #627d98;
     margin-bottom: 20px;
 }
 
 
-.hero h1 span {
-    display: block;
+/* =========================================
+   FILE UPLOAD
+   ========================================= */
+
+.upload-area {
+    background: #f5f9fc;
+    border: 2px dashed #9fb3c8;
+    border-radius: 14px;
+    padding: 30px;
+    text-align: center;
+    margin-bottom: 15px;
 }
 
-
-.hero p {
-    max-width: 700px;
-    margin: auto;
-    color: #667085;
-    font-size: 18px;
-}
-
-
-/* =========================
-   CARD
-========================= */
-
-.card {
-    background: white;
-    border-radius: 18px;
-    padding: 32px;
-    margin-bottom: 28px;
-
-    box-shadow:
-        0 8px 30px rgba(16, 24, 40, 0.08);
-}
-
-
-.section-number {
-    font-size: 13px;
-    font-weight: bold;
-    color: #667085;
-    margin-bottom: 8px;
-}
-
-
-.card h2 {
-    font-size: 25px;
-    margin-bottom: 8px;
-}
-
-
-.description {
-    color: #667085;
-    margin-bottom: 22px;
-}
-
-
-/* =========================
-   FILE INPUT
-========================= */
-
-input[type="file"] {
+#imageInput {
     display: none;
 }
 
-
 .file-label {
-    display: block;
-    border: 2px dashed #98a2b3;
-    border-radius: 14px;
-    padding: 35px;
-    text-align: center;
+    display: inline-block;
+    background: #e8f1f8;
+    color: #145b91;
+    padding: 14px 22px;
+    border-radius: 10px;
     cursor: pointer;
-    transition: 0.2s;
+    font-weight: bold;
 }
-
 
 .file-label:hover {
-    border-color: #344054;
-    background: #f9fafb;
+    background: #d7e8f5;
 }
 
 
-/* =========================
+/* =========================================
    BUTTONS
-========================= */
+   ========================================= */
 
 button {
     border: none;
     border-radius: 10px;
-    padding: 14px 22px;
+    padding: 14px 24px;
     font-size: 16px;
     font-weight: bold;
     cursor: pointer;
-    margin-top: 18px;
-    transition: 0.2s;
+    transition: 0.2s ease;
 }
-
 
 .primary-button {
-    background: #101828;
+    background: #1677c8;
     color: white;
 }
 
+.primary-button:hover {
+    background: #0f5f9f;
+}
 
 .ask-button {
-    background: #175cd3;
-    color: white;
     width: 100%;
+    margin-top: 15px;
+    background: #0b7a57;
+    color: white;
 }
 
-
-button:hover {
-    transform: translateY(-1px);
-    opacity: 0.92;
+.ask-button:hover {
+    background: #096746;
 }
-
 
 button:disabled {
-    background: #98a2b3;
+    background: #9aa5b1;
     cursor: not-allowed;
-    transform: none;
 }
 
 
-/* =========================
+/* =========================================
    STATUS
-========================= */
+   ========================================= */
 
 .status {
     margin-top: 15px;
@@ -194,153 +195,120 @@ button:disabled {
 }
 
 
-.success {
-    color: #067647;
-}
-
-
-.error {
-    color: #b42318;
-}
-
-
-/* =========================
+/* =========================================
    IMAGE PREVIEW
-========================= */
+   ========================================= */
 
 .preview-container {
     margin-top: 25px;
     text-align: center;
 }
 
-
 #preview {
     display: none;
-    max-width: 100%;
+    width: 100%;
     max-height: 500px;
+    object-fit: contain;
     border-radius: 14px;
-    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.12);
+    border: 1px solid #bcccdc;
 }
 
 
-/* =========================
-   QUESTION
-========================= */
+/* =========================================
+   QUESTION BOX
+   ========================================= */
 
-textarea {
+#questionInput {
     width: 100%;
+    padding: 16px;
+    border: 1px solid #bcccdc;
+    border-radius: 10px;
     resize: vertical;
-
-    border: 1px solid #d0d5dd;
-    border-radius: 12px;
-
-    padding: 15px;
-
-    font-family: inherit;
     font-size: 16px;
-
+    font-family: inherit;
     outline: none;
 }
 
-
-textarea:focus {
-    border-color: #175cd3;
-    box-shadow: 0 0 0 3px rgba(23, 92, 211, 0.1);
+#questionInput:focus {
+    border-color: #1677c8;
+    box-shadow: 0 0 0 3px rgba(22, 119, 200, 0.12);
 }
 
 
-/* =========================
-   RESULTS
-========================= */
+/* =========================================
+   ANSWER CARD
+   ========================================= */
 
 .answer-card {
-    border-top: 5px solid #175cd3;
+    margin-bottom: 50px;
 }
-
 
 .result-row {
     display: flex;
     align-items: center;
-    gap: 15px;
-
-    margin-top: 20px;
-    margin-bottom: 20px;
+    gap: 12px;
+    margin: 20px 0;
 }
 
-
 .badge {
-    background: #eef4ff;
-    color: #175cd3;
-
+    background: #e8f1f8;
+    color: #145b91;
     padding: 6px 14px;
-
     border-radius: 20px;
-
+    font-size: 14px;
     font-weight: bold;
 }
 
 
-/* =========================
+/* =========================================
    PLANNER
-========================= */
+   ========================================= */
 
 .planner {
-    background: #f9fafb;
-
-    border-radius: 12px;
-
+    background: #f7f9fb;
+    border-left: 4px solid #1677c8;
     padding: 18px;
-
-    margin-bottom: 20px;
+    border-radius: 8px;
+    margin: 20px 0;
 }
-
 
 .planner p {
-    margin-top: 7px;
-    color: #667085;
+    margin-top: 6px;
+    color: #52606d;
 }
 
 
-/* =========================
-   ANSWER
-========================= */
+/* =========================================
+   AI ANSWER
+   ========================================= */
 
 .answer-area {
-    background: #f0f7ff;
-
-    border-radius: 14px;
-
-    padding: 22px;
+    margin-top: 20px;
 }
-
 
 #answer {
-    margin-top: 15px;
-
+    margin-top: 12px;
+    background: #f0f7ff;
+    border: 1px solid #c7dff2;
+    border-radius: 12px;
+    padding: 22px;
+    min-height: 100px;
     white-space: pre-wrap;
-
     line-height: 1.7;
-
-    color: #344054;
 }
 
 
-/* =========================
+/* =========================================
    FOOTER
-========================= */
+   ========================================= */
 
 footer {
-    text-align: center;
-
-    background: #101828;
-
+    background: #0b1f33;
     color: white;
-
-    padding: 30px;
-
-    margin-top: 30px;
+    text-align: center;
+    padding: 30px 20px;
+    margin-top: 60px;
 }
-
 
 footer p {
     margin: 5px;
@@ -348,9 +316,9 @@ footer p {
 }
 
 
-/* =========================
+/* =========================================
    MOBILE
-========================= */
+   ========================================= */
 
 @media (max-width: 700px) {
 
@@ -359,19 +327,27 @@ footer p {
         text-align: center;
     }
 
-
-    .hero h1 {
-        font-size: 34px;
+    .hero {
+        padding-top: 45px;
     }
 
+    .hero h1 {
+        font-size: 36px;
+    }
+
+    .hero p {
+        font-size: 16px;
+    }
 
     .card {
         padding: 22px;
     }
 
-
-    .main-container {
-        padding: 30px 15px;
+    .logo {
+        font-size: 22px;
     }
 
+    .tagline {
+        font-size: 12px;
+    }
 }

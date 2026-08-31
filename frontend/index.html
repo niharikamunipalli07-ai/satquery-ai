@@ -2,17 +2,33 @@
 <html lang="en">
 
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
     <title>SatQuery AI — Satellite Intelligence</title>
 
-    <link rel="stylesheet" href="style.css">
+    <!-- IMPORTANT:
+         FastAPI serves CSS from /static -->
+    <link
+        rel="stylesheet"
+        href="/static/style.css"
+    >
+
 </head>
+
 
 <body>
 
-    <!-- HEADER -->
+
+    <!-- =====================================================
+         HEADER
+    ====================================================== -->
+
     <header class="header">
 
         <div class="logo">
@@ -26,10 +42,18 @@
     </header>
 
 
-    <!-- MAIN -->
+
+    <!-- =====================================================
+         MAIN CONTENT
+    ====================================================== -->
+
     <main class="main-container">
 
-        <!-- HERO -->
+
+        <!-- =================================================
+             HERO SECTION
+        ================================================== -->
+
         <section class="hero">
 
             <h1>
@@ -39,13 +63,18 @@
 
             <p>
                 Upload a satellite image and ask questions about
-                objects, locations, patterns, and geographic information.
+                objects, locations, patterns, and geographic
+                information using SatQuery AI.
             </p>
 
         </section>
 
 
-        <!-- UPLOAD CARD -->
+
+        <!-- =================================================
+             STEP 01 — UPLOAD IMAGE
+        ================================================== -->
+
         <section class="card">
 
             <div class="section-number">
@@ -60,6 +89,9 @@
                 Select a satellite image to begin analysis.
             </p>
 
+
+            <!-- FILE INPUT -->
+
             <div class="upload-area">
 
                 <input
@@ -68,18 +100,28 @@
                     accept="image/*"
                 >
 
-                <label for="imageInput" class="file-label">
+                <label
+                    for="imageInput"
+                    class="file-label"
+                >
                     📁 Choose Satellite Image
                 </label>
 
             </div>
 
+
+            <!-- UPLOAD BUTTON -->
+
             <button
+                type="button"
                 id="uploadButton"
                 class="primary-button"
             >
                 Upload Image
             </button>
+
+
+            <!-- UPLOAD STATUS -->
 
             <p
                 id="uploadStatus"
@@ -103,7 +145,11 @@
         </section>
 
 
-        <!-- QUESTION CARD -->
+
+        <!-- =================================================
+             STEP 02 — ASK QUESTION
+        ================================================== -->
+
         <section class="card">
 
             <div class="section-number">
@@ -119,6 +165,8 @@
             </p>
 
 
+            <!-- QUESTION -->
+
             <textarea
                 id="questionInput"
                 placeholder="Example: What buildings, roads and vegetation are visible in this image?"
@@ -126,7 +174,10 @@
             ></textarea>
 
 
+            <!-- ASK BUTTON -->
+
             <button
+                type="button"
                 id="askButton"
                 class="ask-button"
                 disabled
@@ -137,7 +188,11 @@
         </section>
 
 
-        <!-- RESULT CARD -->
+
+        <!-- =================================================
+             STEP 03 — AI RESULT
+        ================================================== -->
+
         <section
             class="card answer-card"
             id="answerBox"
@@ -185,7 +240,7 @@
             </div>
 
 
-            <!-- ANSWER -->
+            <!-- AI ANSWER -->
 
             <div class="answer-area">
 
@@ -204,10 +259,14 @@
 
         </section>
 
+
     </main>
 
 
-    <!-- FOOTER -->
+
+    <!-- =====================================================
+         FOOTER
+    ====================================================== -->
 
     <footer>
 
@@ -222,9 +281,16 @@
     </footer>
 
 
-    <!-- JAVASCRIPT -->
 
-    <script src="script.js"></script>
+    <!-- =====================================================
+         JAVASCRIPT
+         
+         IMPORTANT:
+         FastAPI serves script.js from /static
+    ====================================================== -->
+
+    <script src="/static/script.js"></script>
+
 
 </body>
 

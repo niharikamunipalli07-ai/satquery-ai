@@ -1,17 +1,27 @@
+from pathlib import Path
+
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from pathlib import Path
-
-from backend.api.upload import upload_image
-from backend.tools.vqa import ask_vqa
 
 
-# ==========================================
-# CREATE FASTAPI APPLICATION
-# ==========================================
+# ============================================================
+# PATHS
+# ============================================================
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+FRONTEND_DIR = BASE_DIR / "frontend"
+UPLOAD_DIR = BASE_DIR / "outputs" / "uploads"
+
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+
+# ============================================================
+# FASTAPI APP
+# ============================================================
 
 app = FastAPI(
     title="SatQuery AI",
@@ -20,80 +30,247 @@ app = FastAPI(
 )
 
 
-# ==========================================
+# ============================================================
 # CORS
-# ==========================================
+# ============================================================
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=False,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-# ==========================================
-# PATHS
-# ==========================================
+# ============================================================
+# FRONTEND STATIC FILES
+# ============================================================
 
-FRONTEND_DIR = Path("frontend")
-UPLOAD_DIR = Path("outputs/uploads")
+# This makes:
+#
+# /static/script.js
+# /static/style.css
+#
+# available to the browser.
 
-UPLOAD_DIR.mkdir(
-    parents=True,
-    exist_ok=True
+app.mount(
+    "/static",
+    StaticFiles(directory=str(FRONTEND_DIR)),
+    name="static"
 )
 
 
-# ==========================================
+# ============================================================
 # HOME PAGE
-# ==========================================
+# ============================================================
 
-@app.get("/")
+@app.get("/", include_in_schema=False)
 async def home():
-
-    frontend_file = FRONTEND_DIR / "index.html"
-
-    if frontend_file.exists():
-        return FileResponse(
-            str(frontend_file)
-        )
-
-    return {
-        "message": "Welcome to SatQuery AI",
-        "status": "Backend is running",
-        "error": "frontend/index.html not found"
-    }
+    return FileResponse(
+        str(FRONTEND_DIR / "index.html")
+    )
 
 
-# ==========================================
+# ============================================================
 # HEALTH CHECK
-# ==========================================
+# ============================================================
 
 @app.get("/health")
 async def health():
-
     return {
         "status": "healthy",
         "service": "SatQuery AI"
     }
 
 
-# ==========================================
+# ============================================================
+# UPLOAD MODEL
+# ============================================================
+
+class VQARequest(BaseModel):
+    filename: str
+    question: str
+
+
+# ============================================================
 # UPLOAD IMAGE
-# ==========================================
+# ============================================================
 
 @app.post("/upload")
-async def upload(
-    file: UploadFile = File(...)
-):
+async def upload_image(file: UploadFile = File(...)):
+
+    # Check file type
+    if not file.content_type:
+        raise HTTPException(
+            status_code=400,
+            detail="File type could not be detected."
+        )
+
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=400,
+            detail="Please upload an image file."
+        )
+
+    # Keep original filename
+    filename = Path(file.filename).name
+
+    if not filename:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid filename."
+        )
+
+    file_path = UPLOAD_DIR / filename
+
+    # Read and save
+    try:
+        contents = await file.read()
+
+        with open(file_path, "wb") as f:
+            f.write(contents)
+
+    except Exception as e:
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Could not save image: {str(e)}"
+        )
+
+    return {
+        "success": True,
+        "message": "Image uploaded successfully",
+        "filename": filename
+    }
+
+
+# ============================================================
+# VQA
+# ============================================================
+
+@app.post("/vqa")
+async def vqa(request: VQARequest):
+
+    filename = request.filename
+    question = request.question.strip()
+
+    if not filename:
+        raise HTTPException(
+            status_code=400,
+            detail="Filename is required."
+        )
+
+    if not question:
+        raise HTTPException(
+            status_code=400,
+            detail="Question is required."
+        )
+
+    # Make sure only the filename is used
+    safe_filename = Path(filename).name
+
+    image_path = UPLOAD_DIR / safe_filename
+
+    if not image_path.exists():
+
+        raise HTTPException(
+            status_code=404,
+            detail="Uploaded image not found."
+        )
+
+    # ========================================================
+    # QUERY PLANNER
+    # ========================================================
 
     try:
 
-        return await upload_image(file)
+        from backend.tools.query_planner import classify_query
+
+        planner_result = classify_query(question)
 
     except Exception as e:
+
+        print(
+            "QUERY PLANNER ERROR:",
+            str(e)
+        )
+
+        planner_result = None
+
+
+    # ========================================================
+    # EXTRACT CATEGORY
+    # ========================================================
+
+    category = "VQA"
+
+    planner_reason = "Visual question answering"
+
+
+    if isinstance(planner_result, dict):
+
+        category = (
+            planner_result.get("category")
+            or planner_result.get("type")
+            or planner_result.get("query_type")
+            or "VQA"
+        )
+
+        planner_reason = (
+            planner_result.get("reason")
+            or planner_result.get("planner_reason")
+            or planner_result.get("explanation")
+            or "Visual question answering"
+        )
+
+    elif isinstance(planner_result, str):
+
+        category = planner_result
+
+
+    # ========================================================
+    # VQA MODEL
+    # ========================================================
+
+    try:
+
+        from backend.tools.vqa import ask_vqa
+
+        # Your existing VQA function
+        vqa_result = ask_vqa(
+            str(image_path),
+            question
+        )
+
+    except TypeError:
+
+        # Some versions use keyword arguments
+        try:
+
+            vqa_result = ask_vqa(
+                image_path=str(image_path),
+                question=question
+            )
+
+        except Exception as e:
+
+            print(
+                "VQA ERROR:",
+                str(e)
+            )
+
+            raise HTTPException(
+                status_code=500,
+                detail=str(e)
+            )
+
+    except Exception as e:
+
+        print(
+            "VQA ERROR:",
+            str(e)
+        )
 
         raise HTTPException(
             status_code=500,
@@ -101,393 +278,36 @@ async def upload(
         )
 
 
-# ==========================================
-# VQA REQUEST MODEL
-# ==========================================
+    # ========================================================
+    # PROCESS VQA RESULT
+    # ========================================================
 
-class VQARequest(BaseModel):
+    if isinstance(vqa_result, dict):
 
-    filename: str
-    question: str
-
-
-# ==========================================
-# MAIN AI QUERY
-# ==========================================
-
-@app.post("/vqa")
-async def vqa(
-    request: VQARequest
-):
-
-    # ======================================
-    # FIND IMAGE
-    # ======================================
-
-    image_path = (
-        UPLOAD_DIR /
-        request.filename
-    )
-
-    if not image_path.exists():
-
-        raise HTTPException(
-            status_code=404,
-            detail="Image not found"
+        answer = (
+            vqa_result.get("answer")
+            or vqa_result.get("content")
+            or vqa_result.get("response")
         )
 
+        # Preserve useful information
+        if not answer:
 
-    # ======================================
-    # QUERY PLANNER
-    # ======================================
-
-    from backend.tools.query_planner import (
-        classify_query
-    )
-
-
-    question_lower = (
-        request.question.lower()
-    )
-
-
-    # ======================================
-    # KEYWORDS
-    # ======================================
-
-    visual_words = [
-        "visible",
-        "see",
-        "shown",
-        "image",
-        "building",
-        "buildings",
-        "road",
-        "roads",
-        "vegetation",
-        "green areas",
-        "stadium",
-        "sports facilities",
-        "objects",
-        "describe",
-        "tree",
-        "trees",
-        "vehicle",
-        "vehicles",
-        "field",
-        "fields"
-    ]
-
-
-    geo_words = [
-        "latitude",
-        "longitude",
-        "coordinates",
-        "gps",
-        "geolocation",
-        "geographic coordinates",
-        "location",
-        "city",
-        "country",
-        "address"
-    ]
-
-
-    analysis_words = [
-        "analyze",
-        "analysis",
-        "urban development",
-        "land-use",
-        "land use",
-        "change detection",
-        "risk assessment",
-        "pattern",
-        "development",
-        "compare",
-        "comparison"
-    ]
-
-
-    # ======================================
-    # CLASSIFY QUERY
-    # ======================================
-
-    if any(
-        word in question_lower
-        for word in analysis_words
-    ):
-
-        planner_result = {
-            "success": True,
-            "category": "ANALYSIS",
-            "reason": (
-                "The question asks for "
-                "deeper image analysis."
-            )
-        }
-
-
-    elif any(
-        word in question_lower
-        for word in geo_words
-    ):
-
-        planner_result = {
-            "success": True,
-            "category": "GEO",
-            "reason": (
-                "The question asks for "
-                "geographic information."
-            )
-        }
-
-
-    elif any(
-        word in question_lower
-        for word in visual_words
-    ):
-
-        planner_result = {
-            "success": True,
-            "category": "VQA",
-            "reason": (
-                "The question asks about "
-                "visually observable features."
-            )
-        }
-
+            answer = str(vqa_result)
 
     else:
 
-        planner_result = classify_query(
-            request.question
-        )
+        answer = str(vqa_result)
 
 
-    # ======================================
-    # CHECK PLANNER
-    # ======================================
-
-    if not planner_result.get(
-        "success",
-        False
-    ):
-
-        raise HTTPException(
-            status_code=500,
-            detail=planner_result.get(
-                "error",
-                "Query planning failed"
-            )
-        )
-
-
-    category = planner_result.get(
-        "category",
-        "VQA"
-    )
-
-
-    # ======================================
-    # VQA AGENT
-    # ======================================
-
-    if category == "VQA":
-
-        try:
-
-            result = ask_vqa(
-                str(image_path),
-                request.question
-            )
-
-        except Exception as e:
-
-            error_message = str(e)
-
-            # OpenRouter rate limit
-            if "429" in error_message:
-
-                raise HTTPException(
-                    status_code=429,
-                    detail=(
-                        "OpenRouter daily AI request "
-                        "limit has been reached. "
-                        "Please try again after the "
-                        "daily limit resets."
-                    )
-                )
-
-            raise HTTPException(
-                status_code=500,
-                detail=error_message
-            )
-
-
-        if not result.get(
-            "success",
-            False
-        ):
-
-            error_message = result.get(
-                "error",
-                "VQA processing failed"
-            )
-
-            if "429" in error_message:
-
-                raise HTTPException(
-                    status_code=429,
-                    detail=(
-                        "OpenRouter daily AI request "
-                        "limit has been reached. "
-                        "Please try again later."
-                    )
-                )
-
-            raise HTTPException(
-                status_code=500,
-                detail=error_message
-            )
-
-
-        return {
-            "success": True,
-            "category": "VQA",
-            "planner_reason": planner_result.get(
-                "reason",
-                ""
-            ),
-            "answer": result.get(
-                "answer",
-                ""
-            )
-        }
-
-
-    # ======================================
-    # GEO AGENT
-    # ======================================
-
-    if category == "GEO":
-
-        try:
-
-            from backend.tools.geo_agent import (
-                get_geo_information
-            )
-
-            geo_result = get_geo_information(
-                str(image_path)
-            )
-
-        except Exception as e:
-
-            raise HTTPException(
-                status_code=500,
-                detail=str(e)
-            )
-
-
-        if not geo_result.get(
-            "success",
-            False
-        ):
-
-            raise HTTPException(
-                status_code=500,
-                detail=geo_result.get(
-                    "error",
-                    "GEO analysis failed"
-                )
-            )
-
-
-        return {
-            "success": True,
-            "category": "GEO",
-            "planner_reason": planner_result.get(
-                "reason",
-                ""
-            ),
-            "geo_information": geo_result
-        }
-
-
-    # ======================================
-    # ANALYSIS AGENT
-    # ======================================
-
-    if category == "ANALYSIS":
-
-        try:
-
-            from backend.tools.analysis_agent import (
-                analyze_image
-            )
-
-            analysis_result = analyze_image(
-                str(image_path),
-                request.question
-            )
-
-        except Exception as e:
-
-            raise HTTPException(
-                status_code=500,
-                detail=str(e)
-            )
-
-
-        if not analysis_result.get(
-            "success",
-            False
-        ):
-
-            raise HTTPException(
-                status_code=500,
-                detail=analysis_result.get(
-                    "error",
-                    "Analysis failed"
-                )
-            )
-
-
-        return {
-            "success": True,
-            "category": "ANALYSIS",
-            "planner_reason": planner_result.get(
-                "reason",
-                ""
-            ),
-            "answer": analysis_result.get(
-                "answer",
-                ""
-            )
-        }
-
-
-    # ======================================
-    # UNKNOWN CATEGORY
-    # ======================================
+    # ========================================================
+    # FINAL RESPONSE
+    # ========================================================
 
     return {
-        "success": False,
-        "error": "Unknown query category"
+        "success": True,
+        "category": category,
+        "planner_reason": planner_reason,
+        "answer": answer,
+        "filename": safe_filename
     }
-
-
-# ==========================================
-# SERVE FRONTEND STATIC FILES
-# ==========================================
-
-if FRONTEND_DIR.exists():
-
-    app.mount(
-        "/frontend",
-        StaticFiles(
-            directory=str(FRONTEND_DIR),
-            html=True
-        ),
-        name="frontend"
-    )
