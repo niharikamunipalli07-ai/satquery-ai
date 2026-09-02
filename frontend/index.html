@@ -430,6 +430,217 @@
             </div>
 
         </section>
+        
+
+
+        <!-- =================================================
+             OPTICAL + SAR ANALYSIS
+        ================================================== -->
+
+        <section class="card optical-sar-card">
+
+            <div class="section-number">
+                05
+            </div>
+
+            <h2>
+                🛰️ Optical + SAR Analysis
+            </h2>
+
+            <p class="description">
+                Upload an optical image and a SAR image to
+                analyze complementary information from both
+                remote-sensing modalities.
+            </p>
+
+
+            <!-- TWO IMAGE UPLOADS -->
+
+            <div class="comparison-grid">
+
+                <!-- OPTICAL IMAGE -->
+
+                <div class="comparison-box">
+
+                    <h3>
+                        🌍 Optical Image
+                    </h3>
+
+                    <p>
+                        RGB / multispectral optical satellite image
+                    </p>
+
+                    <input
+                        type="file"
+                        id="opticalInput"
+                        accept="image/*,.tif,.tiff"
+                    >
+
+                    <label
+                        for="opticalInput"
+                        class="file-label"
+                    >
+                        📁 Choose Optical Image
+                    </label>
+
+                    <div class="comparison-preview">
+
+                        <img
+                            id="opticalPreview"
+                            alt="Optical Satellite Image"
+                        >
+
+                    </div>
+
+                    <p
+                        id="opticalStatus"
+                        class="status"
+                    >
+                        No optical image selected.
+                    </p>
+
+                </div>
+
+
+                <!-- SAR IMAGE -->
+
+                <div class="comparison-box">
+
+                    <h3>
+                        📡 SAR Image
+                    </h3>
+
+                    <p>
+                        Synthetic Aperture Radar satellite image
+                    </p>
+
+                    <input
+                        type="file"
+                        id="sarInput"
+                        accept="image/*,.tif,.tiff"
+                    >
+
+                    <label
+                        for="sarInput"
+                        class="file-label"
+                    >
+                        📁 Choose SAR Image
+                    </label>
+
+                    <div class="comparison-preview">
+
+                        <img
+                            id="sarPreview"
+                            alt="SAR Satellite Image"
+                        >
+
+                    </div>
+
+                    <p
+                        id="sarStatus"
+                        class="status"
+                    >
+                        No SAR image selected.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <!-- OPTICAL-SAR QUESTION -->
+
+            <h3>
+                ❓ What would you like to know?
+            </h3>
+
+            <textarea
+                id="opticalSarQuestion"
+                placeholder="Example: What complementary information can be observed between the optical and SAR images?"
+                rows="4"
+            ></textarea>
+
+
+            <!-- ANALYSIS BUTTON -->
+
+            <button
+                type="button"
+                id="opticalSarButton"
+                class="ask-button"
+                disabled
+            >
+                🛰️ Analyze Optical + SAR
+            </button>
+
+
+            <!-- STATUS -->
+
+            <p
+                id="opticalSarStatus"
+                class="status"
+            >
+                Select both images to begin.
+            </p>
+
+
+            <!-- RESULT -->
+
+            <div
+                id="opticalSarResult"
+                class="change-result"
+            >
+
+                <h3>
+                    📊 Optical + SAR Result
+                </h3>
+
+
+                <div class="result-row">
+
+                    <strong>
+                        Model
+                    </strong>
+
+                    <span
+                        id="opticalSarModel"
+                        class="badge"
+                    >
+                        —
+                    </span>
+
+                </div>
+
+
+                <div class="answer-area">
+
+                    <strong>
+                        🤖 AI Interpretation
+                    </strong>
+
+                    <div id="opticalSarAnswer">
+                        Optical + SAR analysis results
+                        will appear here.
+                    </div>
+
+                </div>
+
+
+                <div class="change-image-container">
+
+                    <strong>
+                        🖼️ Optical + SAR Comparison
+                    </strong>
+
+                    <img
+                        id="opticalSarVisualization"
+                        alt="Optical SAR Comparison"
+                    >
+
+                </div>
+
+            </div>
+
+        </section>
 
 
     </main>

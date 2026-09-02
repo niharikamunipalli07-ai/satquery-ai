@@ -661,3 +661,299 @@ changeButton.addEventListener(
 
     }
 );
+// =====================================================
+// OPTICAL + SAR ANALYSIS
+// =====================================================
+
+const opticalInput = document.getElementById("opticalInput");
+const sarInput = document.getElementById("sarInput");
+
+const opticalPreview = document.getElementById("opticalPreview");
+const sarPreview = document.getElementById("sarPreview");
+
+const opticalStatus = document.getElementById("opticalStatus");
+const sarStatus = document.getElementById("sarStatus");
+
+const opticalSarQuestion =
+    document.getElementById("opticalSarQuestion");
+
+const opticalSarButton =
+    document.getElementById("opticalSarButton");
+
+const opticalSarStatus =
+    document.getElementById("opticalSarStatus");
+
+const opticalSarResult =
+    document.getElementById("opticalSarResult");
+
+const opticalSarModel =
+    document.getElementById("opticalSarModel");
+
+const opticalSarAnswer =
+    document.getElementById("opticalSarAnswer");
+
+const opticalSarVisualization =
+    document.getElementById("opticalSarVisualization");
+
+
+// -----------------------------------------------------
+// OPTICAL IMAGE SELECTION
+// -----------------------------------------------------
+
+if (opticalInput) {
+
+    opticalInput.addEventListener("change", function () {
+
+        const file = opticalInput.files[0];
+
+        if (!file) {
+            opticalStatus.textContent =
+                "No optical image selected.";
+            return;
+        }
+
+        opticalPreview.src =
+            URL.createObjectURL(file);
+
+        opticalPreview.style.display = "block";
+
+        opticalStatus.textContent =
+            "✅ Optical image selected: " + file.name;
+
+        updateOpticalSarButton();
+    });
+}
+
+
+// -----------------------------------------------------
+// SAR IMAGE SELECTION
+// -----------------------------------------------------
+
+if (sarInput) {
+
+    sarInput.addEventListener("change", function () {
+
+        const file = sarInput.files[0];
+
+        if (!file) {
+            sarStatus.textContent =
+                "No SAR image selected.";
+            return;
+        }
+
+        sarPreview.src =
+            URL.createObjectURL(file);
+
+        sarPreview.style.display = "block";
+
+        sarStatus.textContent =
+            "✅ SAR image selected: " + file.name;
+
+        updateOpticalSarButton();
+    });
+}
+
+
+// -----------------------------------------------------
+// ENABLE / DISABLE BUTTON
+// -----------------------------------------------------
+
+function updateOpticalSarButton() {
+
+    const opticalFile =
+        opticalInput &&
+        opticalInput.files.length > 0;
+
+    const sarFile =
+        sarInput &&
+        sarInput.files.length > 0;
+
+    if (opticalSarButton) {
+
+        opticalSarButton.disabled =
+            !(opticalFile && sarFile);
+
+        if (opticalFile && sarFile) {
+
+            opticalSarStatus.textContent =
+                "✅ Both images selected. Ready for analysis.";
+
+        } else {
+
+            opticalSarStatus.textContent =
+                "Select both images to begin.";
+        }
+    }
+}
+
+
+// -----------------------------------------------------
+// ANALYZE OPTICAL + SAR
+// -----------------------------------------------------
+
+if (opticalSarButton) {
+
+    opticalSarButton.addEventListener(
+        "click",
+        async function () {
+
+            const opticalFile =
+                opticalInput.files[0];
+
+            const sarFile =
+                sarInput.files[0];
+
+            if (!opticalFile || !sarFile) {
+
+                opticalSarStatus.textContent =
+                    "❌ Please select both images.";
+
+                return;
+            }
+
+
+            const question =
+                opticalSarQuestion.value.trim() ||
+                "What differences and complementary information can be observed between the optical and SAR images?";
+
+
+            const formData = new FormData();
+
+            formData.append(
+                "optical",
+                opticalFile
+            );
+
+            formData.append(
+                "sar",
+                sarFile
+            );
+
+
+            opticalSarButton.disabled = true;
+
+            opticalSarStatus.textContent =
+                "⏳ Analyzing optical and SAR images...";
+
+            if (opticalSarResult) {
+                opticalSarResult.style.display = "block";
+            }
+
+            if (opticalSarAnswer) {
+                opticalSarAnswer.textContent =
+                    "AI is analyzing both images...";
+            }
+
+
+            try {
+
+                const response = await fetch(
+                    `/optical-sar?question=${encodeURIComponent(question)}`,
+                    {
+                        method: "POST",
+                        body: formData
+                    }
+                );
+
+
+                const data = await response.json();
+
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        data.detail ||
+                        "Optical-SAR analysis failed."
+                    );
+                }
+
+
+                if (!data.success) {
+
+                    throw new Error(
+                        data.error ||
+                        "Optical-SAR analysis failed."
+                    );
+                }
+
+
+                // -------------------------------------------------
+                // DISPLAY RESULT
+                // -------------------------------------------------
+
+                opticalSarStatus.textContent =
+                    "✅ Optical + SAR analysis completed.";
+
+
+                if (opticalSarModel) {
+
+                    opticalSarModel.textContent =
+                        data.model || "AI Model";
+                }
+
+
+                if (opticalSarAnswer) {
+
+                    opticalSarAnswer.textContent =
+                        data.answer ||
+                        "No analysis answer was returned.";
+                }
+
+
+                // -------------------------------------------------
+                // DISPLAY COMPARISON IMAGE
+                // -------------------------------------------------
+
+                if (
+                    opticalSarVisualization &&
+                    data.comparison
+                ) {
+
+                    let comparisonPath =
+                        data.comparison.replace(/\\/g, "/");
+
+
+                    if (
+                        comparisonPath.startsWith("outputs/")
+                    ) {
+
+                        opticalSarVisualization.src =
+                            "/" + comparisonPath;
+
+                    } else {
+
+                        opticalSarVisualization.src =
+                            "/outputs/optical_sar/optical_sar_comparison.jpg";
+                    }
+
+                    opticalSarVisualization.style.display =
+                        "block";
+                }
+
+
+            } catch (error) {
+
+                console.error(
+                    "OPTICAL-SAR ERROR:",
+                    error
+                );
+
+                opticalSarStatus.textContent =
+                    "❌ " + error.message;
+
+                if (opticalSarAnswer) {
+
+                    opticalSarAnswer.textContent =
+                        "Unable to complete Optical + SAR analysis.";
+                }
+
+            } finally {
+
+                opticalSarButton.disabled = false;
+
+                updateOpticalSarButton();
+            }
+
+        }
+    );
+}

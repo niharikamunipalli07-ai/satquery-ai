@@ -135,6 +135,86 @@ async def upload_image(file: UploadFile = File(...)):
         "message": "Image uploaded successfully",
         "filename": filename
     }
+@app.post("/optical-sar")
+async def optical_sar_analysis(
+    optical: UploadFile = File(...),
+    sar: UploadFile = File(...),
+    question: str = "What differences and complementary information can be observed between the optical and SAR images?"
+):
+    """
+    Optical + SAR paired-image analysis.
+    """
+
+    # Validate optical image
+    if not optical.content_type or not optical.content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=400,
+            detail="Optical input must be an image file."
+        )
+
+    # Validate SAR image
+    if not sar.content_type or not sar.content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=400,
+            detail="SAR input must be an image file."
+        )
+
+    # Create upload directory
+    upload_dir = BASE_DIR / "outputs" / "uploads"
+    upload_dir.mkdir(
+        parents=True,
+        exist_ok=True
+    )
+
+    # Save optical image
+    optical_path = upload_dir / optical.filename
+
+    with open(optical_path, "wb") as f:
+        f.write(await optical.read())
+
+    # Save SAR image
+    sar_path = upload_dir / sar.filename
+
+    with open(sar_path, "wb") as f:
+        f.write(await sar.read())
+
+    # Import Optical + SAR analyzer
+    from backend.tools.optical_sar import analyze_optical_sar
+
+    # Run analysis
+    result = analyze_optical_sar(
+        str(optical_path),
+        str(sar_path),
+        question
+    )
+
+    if not result.get("success"):
+        raise HTTPException(
+            status_code=500,
+            detail=result.get(
+                "error",
+                "Optical-SAR analysis failed"
+            )
+        )
+
+    return {
+        "success": True,
+        "category": "OPTICAL_SAR",
+        "question": question,
+        "answer": result.get("answer"),
+        "model": result.get("model"),
+        "optical_statistics": result.get(
+            "optical_statistics"
+        ),
+        "sar_statistics": result.get(
+            "sar_statistics"
+        ),
+        "comparison": result.get(
+            "comparison"
+        ),
+        "optical_filename": optical.filename,
+        "sar_filename": sar.filename
+    }
 
 
 # ============================================================
