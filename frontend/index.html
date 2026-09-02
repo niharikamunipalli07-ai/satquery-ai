@@ -2,32 +2,18 @@
 <html lang="en">
 
 <head>
-
     <meta charset="UTF-8">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>SatQuery AI — Satellite Intelligence</title>
 
-    <!-- IMPORTANT:
-         FastAPI serves CSS from /static -->
-    <link
-        rel="stylesheet"
-        href="/static/style.css"
-    >
-
+    <link rel="stylesheet" href="/static/style.css">
 </head>
-
 
 <body>
 
-
-    <!-- =====================================================
-         HEADER
-    ====================================================== -->
+    <!-- HEADER -->
 
     <header class="header">
 
@@ -42,17 +28,12 @@
     </header>
 
 
-
-    <!-- =====================================================
-         MAIN CONTENT
-    ====================================================== -->
+    <!-- MAIN -->
 
     <main class="main-container">
 
 
-        <!-- =================================================
-             HERO SECTION
-        ================================================== -->
+        <!-- HERO -->
 
         <section class="hero">
 
@@ -62,17 +43,16 @@
             </h1>
 
             <p>
-                Upload a satellite image and ask questions about
-                objects, locations, patterns, and geographic
-                information using SatQuery AI.
+                Upload satellite images and ask questions about
+                objects, locations, patterns, and changes using
+                SatQuery AI.
             </p>
 
         </section>
 
 
-
         <!-- =================================================
-             STEP 01 — UPLOAD IMAGE
+             SINGLE IMAGE ANALYSIS
         ================================================== -->
 
         <section class="card">
@@ -86,11 +66,10 @@
             </h2>
 
             <p class="description">
-                Select a satellite image to begin analysis.
+                Upload one satellite image for VQA, geographic
+                information, or AI analysis.
             </p>
 
-
-            <!-- FILE INPUT -->
 
             <div class="upload-area">
 
@@ -110,8 +89,6 @@
             </div>
 
 
-            <!-- UPLOAD BUTTON -->
-
             <button
                 type="button"
                 id="uploadButton"
@@ -121,8 +98,6 @@
             </button>
 
 
-            <!-- UPLOAD STATUS -->
-
             <p
                 id="uploadStatus"
                 class="status"
@@ -130,8 +105,6 @@
                 No image uploaded yet.
             </p>
 
-
-            <!-- IMAGE PREVIEW -->
 
             <div class="preview-container">
 
@@ -145,10 +118,7 @@
         </section>
 
 
-
-        <!-- =================================================
-             STEP 02 — ASK QUESTION
-        ================================================== -->
+        <!-- ASK QUESTION -->
 
         <section class="card">
 
@@ -161,11 +131,9 @@
             </h2>
 
             <p class="description">
-                Ask a question about your satellite image.
+                Ask a question about the uploaded satellite image.
             </p>
 
-
-            <!-- QUESTION -->
 
             <textarea
                 id="questionInput"
@@ -173,8 +141,6 @@
                 rows="4"
             ></textarea>
 
-
-            <!-- ASK BUTTON -->
 
             <button
                 type="button"
@@ -188,10 +154,7 @@
         </section>
 
 
-
-        <!-- =================================================
-             STEP 03 — AI RESULT
-        ================================================== -->
+        <!-- SINGLE IMAGE RESULT -->
 
         <section
             class="card answer-card"
@@ -206,8 +169,6 @@
                 🤖 AI Analysis
             </h2>
 
-
-            <!-- CATEGORY -->
 
             <div class="result-row">
 
@@ -225,8 +186,6 @@
             </div>
 
 
-            <!-- PLANNER -->
-
             <div class="planner">
 
                 <strong>
@@ -239,8 +198,6 @@
 
             </div>
 
-
-            <!-- AI ANSWER -->
 
             <div class="answer-area">
 
@@ -260,13 +217,225 @@
         </section>
 
 
+
+        <!-- =================================================
+             BI-TEMPORAL CHANGE DETECTION
+        ================================================== -->
+
+        <section class="card change-card">
+
+            <div class="section-number">
+                04
+            </div>
+
+            <h2>
+                🔄 Bi-Temporal Change Detection
+            </h2>
+
+            <p class="description">
+                Upload two satellite images from different
+                observations and let SatQuery AI identify
+                visible changes.
+            </p>
+
+
+            <!-- TWO IMAGE UPLOADS -->
+
+            <div class="comparison-grid">
+
+
+                <!-- BEFORE IMAGE -->
+
+                <div class="comparison-box">
+
+                    <h3>
+                        🛰️ Before / T1
+                    </h3>
+
+                    <p>
+                        Earlier satellite image
+                    </p>
+
+                    <input
+                        type="file"
+                        id="beforeInput"
+                        accept="image/*"
+                    >
+
+                    <label
+                        for="beforeInput"
+                        class="file-label"
+                    >
+                        📁 Choose Before Image
+                    </label>
+
+
+                    <div class="comparison-preview">
+
+                        <img
+                            id="beforePreview"
+                            alt="Before Satellite Image"
+                        >
+
+                    </div>
+
+                    <p
+                        id="beforeStatus"
+                        class="status"
+                    >
+                        No before image selected.
+                    </p>
+
+                </div>
+
+
+
+                <!-- AFTER IMAGE -->
+
+                <div class="comparison-box">
+
+                    <h3>
+                        🛰️ After / T2
+                    </h3>
+
+                    <p>
+                        Later satellite image
+                    </p>
+
+                    <input
+                        type="file"
+                        id="afterInput"
+                        accept="image/*"
+                    >
+
+                    <label
+                        for="afterInput"
+                        class="file-label"
+                    >
+                        📁 Choose After Image
+                    </label>
+
+
+                    <div class="comparison-preview">
+
+                        <img
+                            id="afterPreview"
+                            alt="After Satellite Image"
+                        >
+
+                    </div>
+
+                    <p
+                        id="afterStatus"
+                        class="status"
+                    >
+                        No after image selected.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <!-- CHANGE QUESTION -->
+
+            <h3>
+                ❓ What would you like to know?
+            </h3>
+
+            <textarea
+                id="changeQuestion"
+                placeholder="Example: What changed between these two satellite images?"
+                rows="4"
+            ></textarea>
+
+
+            <!-- CHANGE BUTTON -->
+
+            <button
+                type="button"
+                id="changeButton"
+                class="ask-button"
+                disabled
+            >
+                🔄 Analyze Changes
+            </button>
+
+
+            <!-- CHANGE STATUS -->
+
+            <p
+                id="changeStatus"
+                class="status"
+            >
+                Select both images to begin.
+            </p>
+
+
+            <!-- CHANGE RESULT -->
+
+            <div
+                id="changeResult"
+                class="change-result"
+            >
+
+                <h3>
+                    📊 Change Detection Result
+                </h3>
+
+
+                <div class="result-row">
+
+                    <strong>
+                        Change Percentage
+                    </strong>
+
+                    <span
+                        id="changePercentage"
+                        class="badge"
+                    >
+                        —
+                    </span>
+
+                </div>
+
+
+                <div class="answer-area">
+
+                    <strong>
+                        🤖 AI Interpretation
+                    </strong>
+
+                    <div id="changeAnswer">
+                        Change analysis results will
+                        appear here.
+                    </div>
+
+                </div>
+
+
+                <div class="change-image-container">
+
+                    <strong>
+                        🖼️ Change Visualization
+                    </strong>
+
+                    <img
+                        id="changeVisualization"
+                        alt="Change Detection Visualization"
+                    >
+
+                </div>
+
+            </div>
+
+        </section>
+
+
     </main>
 
 
-
-    <!-- =====================================================
-         FOOTER
-    ====================================================== -->
+    <!-- FOOTER -->
 
     <footer>
 
@@ -281,16 +450,7 @@
     </footer>
 
 
-
-    <!-- =====================================================
-         JAVASCRIPT
-         
-         IMPORTANT:
-         FastAPI serves script.js from /static
-    ====================================================== -->
-
     <script src="/static/script.js"></script>
-
 
 </body>
 

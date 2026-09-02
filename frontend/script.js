@@ -2,14 +2,13 @@
 // SATQUERY AI - FRONTEND
 // ==========================================
 
-// Empty string = use the same Render website
 const API_URL = "";
 
 let uploadedFilename = null;
 
 
 // ==========================================
-// HTML ELEMENTS
+// HTML ELEMENTS - SINGLE IMAGE
 // ==========================================
 
 const imageInput = document.getElementById("imageInput");
@@ -26,7 +25,35 @@ const answer = document.getElementById("answer");
 
 
 // ==========================================
-// IMAGE PREVIEW
+// HTML ELEMENTS - CHANGE DETECTION
+// ==========================================
+
+const beforeInput = document.getElementById("beforeInput");
+const afterInput = document.getElementById("afterInput");
+
+const beforePreview = document.getElementById("beforePreview");
+const afterPreview = document.getElementById("afterPreview");
+
+const beforeStatus = document.getElementById("beforeStatus");
+const afterStatus = document.getElementById("afterStatus");
+
+const changeQuestion = document.getElementById("changeQuestion");
+const changeButton = document.getElementById("changeButton");
+
+const changeStatus = document.getElementById("changeStatus");
+
+const changePercentage =
+    document.getElementById("changePercentage");
+
+const changeAnswer =
+    document.getElementById("changeAnswer");
+
+const changeVisualization =
+    document.getElementById("changeVisualization");
+
+
+// ==========================================
+// SINGLE IMAGE PREVIEW
 // ==========================================
 
 imageInput.addEventListener("change", function () {
@@ -48,7 +75,7 @@ imageInput.addEventListener("change", function () {
 
 
 // ==========================================
-// UPLOAD IMAGE
+// SINGLE IMAGE UPLOAD
 // ==========================================
 
 uploadButton.addEventListener("click", async function () {
@@ -74,7 +101,6 @@ uploadButton.addEventListener("click", async function () {
 
         formData.append("file", file);
 
-
         const response = await fetch(
             API_URL + "/upload",
             {
@@ -83,7 +109,6 @@ uploadButton.addEventListener("click", async function () {
             }
         );
 
-
         const responseText =
             await response.text();
 
@@ -91,7 +116,6 @@ uploadButton.addEventListener("click", async function () {
             "UPLOAD RAW RESPONSE:",
             responseText
         );
-
 
         let data;
 
@@ -106,7 +130,6 @@ uploadButton.addEventListener("click", async function () {
             );
         }
 
-
         if (!response.ok) {
 
             throw new Error(
@@ -116,10 +139,8 @@ uploadButton.addEventListener("click", async function () {
             );
         }
 
-
         uploadedFilename =
             data.filename;
-
 
         if (!uploadedFilename) {
 
@@ -128,13 +149,10 @@ uploadButton.addEventListener("click", async function () {
             );
         }
 
-
         uploadStatus.innerText =
             "✅ Image uploaded successfully!";
 
-
         askButton.disabled = false;
-
 
         category.innerText =
             "Waiting...";
@@ -144,7 +162,6 @@ uploadButton.addEventListener("click", async function () {
 
         answer.innerText =
             "Image uploaded. Ask a question about it.";
-
 
     } catch (error) {
 
@@ -158,7 +175,6 @@ uploadButton.addEventListener("click", async function () {
 
         askButton.disabled = true;
 
-
     } finally {
 
         uploadButton.disabled = false;
@@ -169,7 +185,7 @@ uploadButton.addEventListener("click", async function () {
 
 
 // ==========================================
-// ASK QUESTION
+// ASK SINGLE IMAGE QUESTION
 // ==========================================
 
 askButton.addEventListener("click", async function () {
@@ -182,10 +198,8 @@ askButton.addEventListener("click", async function () {
         return;
     }
 
-
     const userQuestion =
         questionInput.value.trim();
-
 
     if (!userQuestion) {
 
@@ -195,9 +209,7 @@ askButton.addEventListener("click", async function () {
         return;
     }
 
-
     askButton.disabled = true;
-
 
     category.innerText =
         "Processing...";
@@ -207,7 +219,6 @@ askButton.addEventListener("click", async function () {
 
     answer.innerText =
         "🤖 SatQuery AI is analyzing the satellite image...";
-
 
     try {
 
@@ -233,16 +244,13 @@ askButton.addEventListener("click", async function () {
             }
         );
 
-
         const responseText =
             await response.text();
-
 
         console.log(
             "VQA RAW RESPONSE:",
             responseText
         );
-
 
         let data;
 
@@ -257,12 +265,10 @@ askButton.addEventListener("click", async function () {
             );
         }
 
-
         console.log(
             "VQA RESPONSE:",
             data
         );
-
 
         if (!response.ok) {
 
@@ -273,37 +279,20 @@ askButton.addEventListener("click", async function () {
             );
         }
 
-
-        // ======================================
-        // CATEGORY
-        // ======================================
-
         category.innerText =
             data.category ||
             "VQA";
 
-
-        // ======================================
-        // PLANNER
-        // ======================================
-
         plannerReason.innerText =
             data.planner_reason ||
             "Satellite image analysis completed.";
-
-
-        // ======================================
-        // AI ANSWER
-        // ======================================
 
         if (data.answer) {
 
             answer.innerText =
                 data.answer;
 
-        }
-
-        else if (
+        } else if (
             data.geo_information &&
             data.geo_information.answer
         ) {
@@ -311,9 +300,7 @@ askButton.addEventListener("click", async function () {
             answer.innerText =
                 data.geo_information.answer;
 
-        }
-
-        else if (data.geo_information) {
+        } else if (data.geo_information) {
 
             answer.innerText =
                 JSON.stringify(
@@ -322,9 +309,7 @@ askButton.addEventListener("click", async function () {
                     2
                 );
 
-        }
-
-        else {
+        } else {
 
             answer.innerText =
                 "⚠️ No answer returned.\n\n" +
@@ -334,7 +319,6 @@ askButton.addEventListener("click", async function () {
                     2
                 );
         }
-
 
     } catch (error) {
 
@@ -353,3 +337,327 @@ askButton.addEventListener("click", async function () {
     }
 
 });
+
+
+// ==========================================
+// BEFORE IMAGE PREVIEW
+// ==========================================
+
+beforeInput.addEventListener(
+    "change",
+    function () {
+
+        const file =
+            beforeInput.files[0];
+
+        if (!file) {
+            return;
+        }
+
+        beforePreview.src =
+            URL.createObjectURL(file);
+
+        beforePreview.style.display =
+            "block";
+
+        beforeStatus.innerText =
+            "✅ Before image selected: " +
+            file.name;
+
+        updateChangeButton();
+
+    }
+);
+
+
+// ==========================================
+// AFTER IMAGE PREVIEW
+// ==========================================
+
+afterInput.addEventListener(
+    "change",
+    function () {
+
+        const file =
+            afterInput.files[0];
+
+        if (!file) {
+            return;
+        }
+
+        afterPreview.src =
+            URL.createObjectURL(file);
+
+        afterPreview.style.display =
+            "block";
+
+        afterStatus.innerText =
+            "✅ After image selected: " +
+            file.name;
+
+        updateChangeButton();
+
+    }
+);
+
+
+// ==========================================
+// ENABLE CHANGE BUTTON
+// ==========================================
+
+function updateChangeButton() {
+
+    const beforeFile =
+        beforeInput.files[0];
+
+    const afterFile =
+        afterInput.files[0];
+
+    if (beforeFile && afterFile) {
+
+        changeButton.disabled =
+            false;
+
+        changeStatus.innerText =
+            "✅ Both images selected. Ready for analysis.";
+
+    } else {
+
+        changeButton.disabled =
+            true;
+
+        changeStatus.innerText =
+            "Select both images to begin.";
+
+    }
+}
+
+
+// ==========================================
+// CHANGE DETECTION
+// ==========================================
+
+changeButton.addEventListener(
+    "click",
+    async function () {
+
+        const beforeFile =
+            beforeInput.files[0];
+
+        const afterFile =
+            afterInput.files[0];
+
+        if (!beforeFile || !afterFile) {
+
+            changeStatus.innerText =
+                "❌ Please select both images.";
+
+            return;
+        }
+
+        let userQuestion =
+            changeQuestion.value.trim();
+
+        if (!userQuestion) {
+
+            userQuestion =
+                "What changed between these two satellite images?";
+
+        }
+
+        changeButton.disabled =
+            true;
+
+        changeStatus.innerText =
+            "⏳ SatQuery AI is comparing both satellite images...";
+
+        changePercentage.innerText =
+            "Processing...";
+
+        changeAnswer.innerText =
+            "🤖 Analyzing changes between T1 and T2...";
+
+        changeVisualization.style.display =
+            "none";
+
+        try {
+
+            const formData =
+                new FormData();
+
+            formData.append(
+                "before",
+                beforeFile
+            );
+
+            formData.append(
+                "after",
+                afterFile
+            );
+
+            const url =
+                API_URL +
+                "/change-detection?question=" +
+                encodeURIComponent(
+                    userQuestion
+                );
+
+            const response =
+                await fetch(
+                    url,
+                    {
+                        method: "POST",
+                        body: formData
+                    }
+                );
+
+            const responseText =
+                await response.text();
+
+            console.log(
+                "CHANGE DETECTION RAW RESPONSE:",
+                responseText
+            );
+
+            let data;
+
+            try {
+
+                data =
+                    JSON.parse(
+                        responseText
+                    );
+
+            } catch {
+
+                throw new Error(
+                    "Backend returned an invalid response."
+                );
+
+            }
+
+            console.log(
+                "CHANGE DETECTION RESPONSE:",
+                data
+            );
+
+            if (!response.ok) {
+
+                throw new Error(
+                    data.detail ||
+                    data.error ||
+                    "Change detection failed."
+                );
+
+            }
+
+            if (!data.success) {
+
+                throw new Error(
+                    data.answer ||
+                    "Change detection failed."
+                );
+
+            }
+
+            // ======================================
+            // CHANGE PERCENTAGE
+            // ======================================
+
+            if (
+                data.change_percentage !==
+                undefined
+            ) {
+
+                changePercentage.innerText =
+                    data.change_percentage +
+                    "%";
+
+            } else {
+
+                changePercentage.innerText =
+                    "Not available";
+
+            }
+
+
+            // ======================================
+            // AI ANSWER
+            // ======================================
+
+            changeAnswer.innerText =
+                data.answer ||
+                "No AI interpretation returned.";
+
+
+            // ======================================
+            // VISUALIZATION
+            // ======================================
+
+            if (data.visualization) {
+
+                let visualizationPath =
+                    data.visualization;
+
+                /*
+                 * Backend currently returns:
+                 * outputs/changes/...
+                 *
+                 * Convert it into a browser URL.
+                 */
+
+                visualizationPath =
+                    visualizationPath
+                    .replaceAll("\\", "/");
+
+                if (
+                    visualizationPath.startsWith(
+                        "outputs/"
+                    )
+                ) {
+
+                    visualizationPath =
+                        "/" +
+                        visualizationPath;
+
+                }
+
+                changeVisualization.src =
+                    visualizationPath;
+
+                changeVisualization.style.display =
+                    "block";
+
+            }
+
+
+            changeStatus.innerText =
+                "✅ Change detection completed successfully.";
+
+        } catch (error) {
+
+            console.error(
+                "CHANGE DETECTION ERROR:",
+                error
+            );
+
+            changeStatus.innerText =
+                "❌ Change detection failed.";
+
+            changePercentage.innerText =
+                "Error";
+
+            changeAnswer.innerText =
+                error.message;
+
+        } finally {
+
+            changeButton.disabled =
+                false;
+
+            updateChangeButton();
+
+        }
+
+    }
+);

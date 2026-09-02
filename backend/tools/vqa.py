@@ -7,100 +7,212 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ============================================================
-
-# OPENROUTER API KEY
-
+# OPENROUTER CONFIGURATION
 # ============================================================
 
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+MODELS_URL = "https://openrouter.ai/api/v1/models"
+
 
 # ============================================================
+# GET AVAILABLE FREE VISION MODELS
+# ============================================================
 
+def get_free_vision_models():
+    """
+    Get currently available free models from OpenRouter
+    that support image input.
+    """
+
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Content-Type": "application/json",
+    }
+
+    try:
+        response = requests.get(
+            MODELS_URL,
+            headers=headers,
+            params={
+                "input_modalities": "image",
+                "max_price": "0",
+            },
+            timeout=30,
+        )
+
+        if response.status_code != 200:
+            print(
+                "MODEL LIST STATUS:",
+                response.status_code
+            )
+            return []
+
+        data = response.json()
+
+        models = data.get("data", [])
+
+        vision_models = []
+
+        # Words used to exclude unsuitable models
+        blocked_words = [
+            "safety",
+            "content-safety",
+            "moderation",
+            "guard",
+            "rerank",
+            "embedding",
+            "embed",
+        ]
+
+        for model in models:
+
+            model_id = model.get("id", "")
+
+            if not model_id:
+                continue
+
+            # Only free model variants
+            if ":free" not in model_id:
+                continue
+
+            model_name = model_id.lower()
+
+            # Avoid safety/moderation models
+            if any(
+                word in model_name
+                for word in blocked_words
+            ):
+                continue
+
+            # Check modalities
+            architecture = model.get(
+                "architecture",
+                {}
+            )
+
+            input_modalities = architecture.get(
+                "input_modalities",
+                []
+            )
+
+            if "image" not in input_modalities:
+                continue
+
+            vision_models.append(model_id)
+
+        print(
+            "AVAILABLE FREE VISION MODELS:",
+            vision_models
+        )
+
+        return vision_models
+
+    except Exception as e:
+
+        print(
+            "MODEL DISCOVERY ERROR:",
+            str(e)
+        )
+
+        return []
+
+
+# ============================================================
 # VQA FUNCTION
-
 # ============================================================
 
 def ask_vqa(image_path: str, question: str):
 
-```
-# --------------------------------------------------------
-# CHECK API KEY
-# --------------------------------------------------------
+    # ========================================================
+    # CHECK API KEY
+    # ========================================================
 
-if not OPENROUTER_API_KEY:
+    if not OPENROUTER_API_KEY:
 
-    return {
-        "success": False,
-        "error": "OPENROUTER_API_KEY is not configured"
-    }
-
-
-# --------------------------------------------------------
-# CHECK IMAGE
-# --------------------------------------------------------
-
-if not os.path.exists(image_path):
-
-    return {
-        "success": False,
-        "error": "Image file not found"
-    }
+        return {
+            "success": False,
+            "error":
+                "OPENROUTER_API_KEY is not configured"
+        }
 
 
-try:
+    # ========================================================
+    # CHECK IMAGE
+    # ========================================================
 
-    # ====================================================
-    # READ IMAGE
-    # ====================================================
+    if not os.path.exists(image_path):
 
-    with open(image_path, "rb") as image_file:
-
-        image_data = base64.b64encode(
-            image_file.read()
-        ).decode("utf-8")
-
-
-    # ====================================================
-    # DETECT IMAGE TYPE
-    # ====================================================
-
-    extension = os.path.splitext(
-        image_path
-    )[1].lower()
+        return {
+            "success": False,
+            "error": "Image file not found"
+        }
 
 
-    mime_types = {
+    try:
 
-        ".jpg": "image/jpeg",
-        ".jpeg": "image/jpeg",
-        ".png": "image/png",
-        ".webp": "image/webp",
-        ".tif": "image/tiff",
-        ".tiff": "image/tiff"
+        # ====================================================
+        # READ IMAGE
+        # ====================================================
 
-    }
+        with open(
+            image_path,
+            "rb"
+        ) as image_file:
 
-
-    mime_type = mime_types.get(
-        extension,
-        "image/jpeg"
-    )
+            image_data = base64.b64encode(
+                image_file.read()
+            ).decode("utf-8")
 
 
-    data_url = (
-        f"data:{mime_type};base64,{image_data}"
-    )
+        # ====================================================
+        # DETECT IMAGE TYPE
+        # ====================================================
+
+        extension = os.path.splitext(
+            image_path
+        )[1].lower()
 
 
-    # ====================================================
-    # PROMPT
-    # ====================================================
+        mime_types = {
 
-    prompt = f"""
-```
+            ".jpg":
+                "image/jpeg",
 
+            ".jpeg":
+                "image/jpeg",
+
+            ".png":
+                "image/png",
+
+            ".webp":
+                "image/webp",
+
+            ".tif":
+                "image/tiff",
+
+            ".tiff":
+                "image/tiff"
+        }
+
+
+        mime_type = mime_types.get(
+            extension,
+            "image/jpeg"
+        )
+
+
+        data_url = (
+            f"data:{mime_type};base64,{image_data}"
+        )
+
+
+        # ====================================================
+        # PROMPT
+        # ====================================================
+
+        prompt = f"""
 You are SatQuery AI, a Vision-Language Assistant
 specialized in satellite and remote-sensing image analysis.
 
@@ -125,376 +237,428 @@ Instructions:
 9. Do NOT perform safety classification.
 10. Do NOT output "User Safety: safe".
 11. Return ONLY the actual satellite-image answer.
-    """
+"""
 
-    ```
-    # ====================================================
-    # MODEL FALLBACK CHAIN
-    # ====================================================
-    #
-    # OpenRouter will try these models in order.
-    #
-    # The models parameter is OpenRouter's documented
-    # model-level fallback mechanism.
-    #
-    # ====================================================
 
-    models = [
+        # ====================================================
+        # FIND CURRENT FREE VISION MODELS
+        # ====================================================
 
-        "google/gemma-4-31b-it:free",
+        models = get_free_vision_models()
 
-        "google/gemma-4-26b-a4b-it:free"
 
-    ]
+        # ====================================================
+        # FALLBACK IF MODEL DISCOVERY FAILS
+        # ====================================================
 
+        if not models:
 
-    # ====================================================
-    # REQUEST
-    # ====================================================
+            models = [
 
-    payload = {
+                "google/gemma-4-31b-it:free",
 
-        "models": models,
+                "google/gemma-4-26b-a4b-it:free"
+            ]
 
-        "messages": [
 
-            {
+        # ====================================================
+        # TRY MODELS ONE BY ONE
+        # ====================================================
 
-                "role": "user",
+        last_error = None
 
-                "content": [
 
-                    {
+        for model in models:
 
-                        "type": "text",
-
-                        "text": prompt
-
-                    },
-
-                    {
-
-                        "type": "image_url",
-
-                        "image_url": {
-
-                            "url": data_url
-
-                        }
-
-                    }
-
-                ]
-
-            }
-
-        ],
-
-        "max_tokens": 1000,
-
-        "temperature": 0.2
-
-    }
-
-
-    response = requests.post(
-
-        OPENROUTER_URL,
-
-        headers={
-
-            "Authorization":
-                f"Bearer {OPENROUTER_API_KEY}",
-
-            "Content-Type":
-                "application/json"
-
-        },
-
-        json=payload,
-
-        timeout=120
-
-    )
-
-
-    # ====================================================
-    # DEBUG
-    # ====================================================
-
-    print(
-        "OPENROUTER STATUS:",
-        response.status_code
-    )
-
-    print(
-        "OPENROUTER RAW RESPONSE:",
-        response.text
-    )
-
-
-    # ====================================================
-    # HANDLE HTTP ERRORS
-    # ====================================================
-
-    if response.status_code == 429:
-
-        return {
-
-            "success": False,
-
-            "error":
-                "OpenRouter is temporarily rate-limited. "
-                "Please wait a little and try again."
-
-        }
-
-
-    if response.status_code == 404:
-
-        return {
-
-            "success": False,
-
-            "error":
-                "The selected vision model is currently "
-                "unavailable. Please try again later."
-
-        }
-
-
-    if response.status_code != 200:
-
-        return {
-
-            "success": False,
-
-            "error":
-                f"OpenRouter HTTP {response.status_code}: "
-                f"{response.text}"
-
-        }
-
-
-    # ====================================================
-    # PARSE JSON
-    # ====================================================
-
-    try:
-
-        result = response.json()
-
-    except Exception:
-
-        return {
-
-            "success": False,
-
-            "error":
-                "OpenRouter returned invalid JSON."
-
-        }
-
-
-    # ====================================================
-    # CHECK API ERROR
-    # ====================================================
-
-    if "error" in result:
-
-        error_info = result["error"]
-
-        if isinstance(error_info, dict):
-
-            error_message = error_info.get(
-                "message",
-                str(error_info)
+            print(
+                "SATQUERY AI: Trying model:",
+                model
             )
 
-        else:
 
-            error_message = str(error_info)
+            payload = {
+
+                "model": model,
+
+                "messages": [
+
+                    {
+                        "role": "user",
+
+                        "content": [
+
+                            {
+                                "type": "text",
+
+                                "text": prompt
+                            },
+
+                            {
+                                "type": "image_url",
+
+                                "image_url": {
+
+                                    "url":
+                                        data_url
+                                }
+                            }
+                        ]
+                    }
+                ],
+
+                "max_tokens": 700,
+
+                "temperature": 0.2
+            }
 
 
-        return {
+            try:
 
-            "success": False,
+                response = requests.post(
 
-            "error": error_message
+                    OPENROUTER_URL,
 
-        }
+                    headers={
+
+                        "Authorization":
+                            f"Bearer {OPENROUTER_API_KEY}",
+
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    json=payload,
+
+                    timeout=120
+                )
 
 
-    # ====================================================
-    # CHECK CHOICES
-    # ====================================================
+                print(
+                    "OPENROUTER STATUS:",
+                    response.status_code
+                )
 
-    choices = result.get("choices")
 
-    if not choices:
+                # =================================================
+                # RATE LIMIT
+                # =================================================
+
+                if response.status_code == 429:
+
+                    print(
+                        "MODEL RATE-LIMITED:",
+                        model
+                    )
+
+                    last_error = (
+                        f"{model} is rate-limited"
+                    )
+
+                    continue
+
+
+                # =================================================
+                # MODEL NOT AVAILABLE
+                # =================================================
+
+                if response.status_code == 404:
+
+                    print(
+                        "MODEL NOT AVAILABLE:",
+                        model
+                    )
+
+                    last_error = (
+                        f"{model} is unavailable"
+                    )
+
+                    continue
+
+
+                # =================================================
+                # OTHER HTTP ERROR
+                # =================================================
+
+                if response.status_code != 200:
+
+                    print(
+                        "OPENROUTER ERROR:",
+                        response.text
+                    )
+
+                    last_error = (
+                        f"HTTP {response.status_code}: "
+                        f"{response.text}"
+                    )
+
+                    continue
+
+
+                # =================================================
+                # PARSE RESPONSE
+                # =================================================
+
+                try:
+
+                    result = response.json()
+
+                except Exception:
+
+                    last_error = (
+                        "OpenRouter returned invalid JSON"
+                    )
+
+                    continue
+
+
+                # =================================================
+                # API ERROR
+                # =================================================
+
+                if "error" in result:
+
+                    error_info = result["error"]
+
+                    if isinstance(
+                        error_info,
+                        dict
+                    ):
+
+                        error_message = (
+                            error_info.get(
+                                "message",
+                                str(error_info)
+                            )
+                        )
+
+                    else:
+
+                        error_message = str(
+                            error_info
+                        )
+
+
+                    print(
+                        "MODEL ERROR:",
+                        error_message
+                    )
+
+
+                    last_error = error_message
+
+                    continue
+
+
+                # =================================================
+                # CHECK CHOICES
+                # =================================================
+
+                choices = result.get(
+                    "choices"
+                )
+
+
+                if not choices:
+
+                    last_error = (
+                        "OpenRouter returned no choices"
+                    )
+
+                    continue
+
+
+                # =================================================
+                # GET CONTENT
+                # =================================================
+
+                message = choices[0].get(
+                    "message",
+                    {}
+                )
+
+
+                content = message.get(
+                    "content"
+                )
+
+
+                if not content:
+
+                    last_error = (
+                        "AI returned no text content"
+                    )
+
+                    continue
+
+
+                # =================================================
+                # HANDLE CONTENT FORMAT
+                # =================================================
+
+                if isinstance(
+                    content,
+                    list
+                ):
+
+                    text_parts = []
+
+                    for item in content:
+
+                        if isinstance(
+                            item,
+                            dict
+                        ):
+
+                            text = item.get(
+                                "text"
+                            )
+
+                            if text:
+
+                                text_parts.append(
+                                    text
+                                )
+
+                    content = " ".join(
+                        text_parts
+                    )
+
+
+                content = str(
+                    content
+                ).strip()
+
+
+                # =================================================
+                # SAFETY RESPONSE CHECK
+                # =================================================
+
+                safety_responses = [
+
+                    "user safety: safe",
+
+                    "user safety: unsafe",
+
+                    "safe",
+
+                    "unsafe"
+                ]
+
+
+                if content.lower() in safety_responses:
+
+                    print(
+                        "UNSUITABLE SAFETY RESPONSE:",
+                        model
+                    )
+
+                    last_error = (
+                        "Model returned a safety "
+                        "classification"
+                    )
+
+                    continue
+
+
+                # =================================================
+                # SUCCESS
+                # =================================================
+
+                selected_model = result.get(
+                    "model",
+                    model
+                )
+
+
+                print(
+                    "===================================="
+                )
+
+                print(
+                    "SATQUERY AI VQA SUCCESS"
+                )
+
+                print(
+                    "MODEL:",
+                    selected_model
+                )
+
+                print(
+                    "ANSWER:",
+                    content
+                )
+
+                print(
+                    "===================================="
+                )
+
+
+                return {
+
+                    "success": True,
+
+                    "question": question,
+
+                    "answer": content,
+
+                    "model": selected_model
+                }
+
+
+            except requests.exceptions.Timeout:
+
+                print(
+                    "TIMEOUT:",
+                    model
+                )
+
+                last_error = (
+                    f"{model} request timed out"
+                )
+
+                continue
+
+
+            except requests.exceptions.RequestException as e:
+
+                print(
+                    "NETWORK ERROR:",
+                    model,
+                    str(e)
+                )
+
+                last_error = str(e)
+
+                continue
+
+
+        # ========================================================
+        # ALL MODELS FAILED
+        # ========================================================
 
         return {
 
             "success": False,
 
             "error":
-                "OpenRouter returned no choices."
+                "All available free vision models "
+                "are currently unavailable or "
+                "rate-limited. Please try again later.",
 
+            "details":
+                last_error
         }
 
 
-    # ====================================================
-    # GET MESSAGE
-    # ====================================================
-
-    message = choices[0].get(
-        "message",
-        {}
-    )
-
-
-    content = message.get(
-        "content"
-    )
-
-
-    # ====================================================
-    # CHECK CONTENT
-    # ====================================================
-
-    if not content:
-
-        return {
-
-            "success": False,
-
-            "error":
-                "AI returned no text content."
-
-        }
-
-
-    content = content.strip()
-
-
-    # ====================================================
-    # PREVENT SAFETY-MODEL RESPONSE
-    # ====================================================
-
-    safety_responses = [
-
-        "user safety: safe",
-
-        "user safety: unsafe",
-
-        "safe",
-
-        "unsafe"
-
-    ]
-
-
-    if content.lower() in safety_responses:
-
-        return {
-
-            "success": False,
-
-            "error":
-                "The selected model returned a safety "
-                "classification instead of a satellite "
-                "image answer."
-
-        }
-
-
-    # ====================================================
-    # SUCCESS
-    # ====================================================
-
-    selected_model = result.get(
-        "model",
-        "unknown"
-    )
-
-
-    print(
-        "SATQUERY AI: VQA answer generated successfully."
-    )
-
-    print(
-        "SATQUERY AI: Model used:",
-        selected_model
-    )
-
-
-    return {
-
-        "success": True,
-
-        "question": question,
-
-        "answer": content,
-
-        "model": selected_model
-
-    }
-    ```
-
     # ========================================================
-
-    # TIMEOUT
-
-    # ========================================================
-
-    except requests.exceptions.Timeout:
-
-    ```
-    return {
-
-        "success": False,
-
-        "error":
-            "OpenRouter request timed out. "
-            "Please try again."
-
-    }
-    ```
-
-    # ========================================================
-
-    # NETWORK ERROR
-
-    # ========================================================
-
-    except requests.exceptions.RequestException as e:
-
-    ```
-    return {
-
-        "success": False,
-
-        "error":
-            f"Network error: {str(e)}"
-
-    }
-    ```
-
-    # ========================================================
-
-    # OTHER ERROR
-
+    # GENERAL ERROR
     # ========================================================
 
     except Exception as e:
 
-    ```
-    return {
+        return {
 
-        "success": False,
+            "success": False,
 
-        "error":
-            str(e)
-
-    }
-    ```
+            "error": str(e)
+        }

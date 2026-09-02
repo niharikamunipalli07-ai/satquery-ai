@@ -52,6 +52,11 @@ app.mount(
     StaticFiles(directory=str(FRONTEND_DIR)),
     name="static"
 )
+app.mount(
+    "/outputs",
+    StaticFiles(directory=str(BASE_DIR / "outputs")),
+    name="outputs"
+)
 
 
 @app.get("/", include_in_schema=False)
@@ -380,4 +385,131 @@ async def vqa(request: VQARequest):
 
         "filename": safe_filename
 
+    }
+@app.post("/change-detection")
+async def change_detection(
+    before: UploadFile = File(...),
+    after: UploadFile = File(...),
+    question: str = "What changed between these two satellite images?"
+):
+    """
+    Bi-temporal satellite image change detection.
+    """
+
+    # Validate first image
+    if not before.content_type:
+        raise HTTPException(
+            status_code=400,
+            detail="Before image type could not be detected."
+        )
+
+    if not before.content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=400,
+            detail="Before file must be an image."
+        )
+
+    # Validate second image
+    if not after.content_type:
+        raise HTTPException(
+            status_code=400,
+            detail="After image type could not be detected."
+        )
+
+    if not after.content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=400,
+            detail="After file must be an image."
+        )
+
+    before_filename = Path(before.filename).name
+    after_filename = Path(after.filename).name
+
+    if not before_filename or not after_filename:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid image filename."
+        )
+
+    before_path = UPLOAD_DIR / before_filename
+    after_path = UPLOAD_DIR / after_filename
+
+    try:
+        # Save Before image
+        before_contents = await before.read()
+
+        with open(before_path, "wb") as f:
+            f.write(before_contents)
+
+        # Save After image
+        after_contents = await after.read()
+
+        with open(after_path, "wb") as f:
+            f.write(after_contents)
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Could not save images: {str(e)}"
+        )
+
+    # Run Change Detection Agent
+    try:
+        from backend.tools.change_detection import detect_changes
+
+        result = detect_changes(
+            str(before_path),
+            str(after_path),
+            question.strip()
+        )
+
+    except Exception as e:
+        print("CHANGE DETECTION ERROR:", str(e))
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Change Detection Agent error: {str(e)}"
+        )
+
+    # Return agent result
+    if isinstance(result, dict):
+
+        if not result.get("success", False):
+
+            return {
+                "success": False,
+                "category": "CHANGE_DETECTION",
+                "answer": result.get(
+                    "error",
+                    "Change detection failed."
+                )
+            }
+
+        return {
+            "success": True,
+            "category": "CHANGE_DETECTION",
+            "answer": result.get(
+                "answer",
+                "Changes detected."
+            ),
+            "change_percentage": result.get(
+                "change_percentage",
+                0
+            ),
+            "visualization": result.get(
+                "visualization"
+            ),
+            "model": result.get(
+                "model"
+            ),
+            "before_filename": before_filename,
+            "after_filename": after_filename
+        }
+
+    return {
+        "success": True,
+        "category": "CHANGE_DETECTION",
+        "answer": str(result),
+        "before_filename": before_filename,
+        "after_filename": after_filename
     }
